@@ -30,6 +30,8 @@
 just made simple classification model using for loops and conditional statements.
 
 ## Result
+![image](https://user-images.githubusercontent.com/65381957/157922814-07ded0d7-b083-4ae1-867d-9b23819dd677.png)
+![image](https://user-images.githubusercontent.com/65381957/157922858-39344f6d-b1ee-4394-bc45-0a2be9b5dd8c.png)
 
 
 ______
@@ -65,3 +67,7 @@ ______
 
 ## 코드
 반복문(for)과 조건문(if)를 사용하여 간단한 분류모델을 만들었다.
+
+## 결과
+![image](https://user-images.githubusercontent.com/65381957/157922814-07ded0d7-b083-4ae1-867d-9b23819dd677.png)
+![image](https://user-images.githubusercontent.com/65381957/157922858-39344f6d-b1ee-4394-bc45-0a2be9b5dd8c.png)
