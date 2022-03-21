@@ -5,25 +5,50 @@
 # !!! USE APPLY() INSTEAD OF FOR() LOOP AS POSSIBLE !!!
 # =========================================================================
 
-## function definition
-substr_count_b <- function(matrix, str, dir) {
-	if (dir != 1 && dir != 2) { # exception handling
+## function for the charactor matrix
+count_substr_b <- function(matrix, str, dir) {
+	# exception handling
+	if (dir != 1 && dir != 2) { 
 		print("[error] invalid direction value.")
 		return (NULL)
 	}
-	library(stringr) # use stringr library
-	tmp <- apply(matrix, 1, str_detect, str) # keep the direction consistent.
-	res <- apply(tmp, dir, sum, na.rm = TRUE) # count TRUE according in the given direction
+	# use stringr library
+	library(stringr)
+	tmp <- apply(matrix, 2, str_detect, str) 
+	# count TRUE in the given direction
+	res <- apply(tmp, dir, sum, na.rm = TRUE) 
+	# convert vector to a matrix
+	if (dir == 1) {
+		res <- matrix(data = res, nrow = nrow(matrix), ncol = 1)
+	}
+	else if (dir == 2) {
+		res <- matrix(data = res, nrow = 1, ncol = ncol(matrix))
+	}
 	return (res)
 }
 
+# ==========================================================================
+
 ## set matrix
-mat <- matrix(data = c('행복', '행아웃', '행가레', '행복이란 무엇일까요',
-	'무엇', '일까요', '나', '나라는 존재', '존재론적 사고'), nrow = 3, ncol = 3)
-str <- c('행')
+mat <- matrix(data = c('happy', 'hangout', 'hangover', 'what is happiness',
+	'what', 'is', 'me', 'That is me', 'That'), nrow = 3, ncol = 3)
+str <- c('what')
+
+## display matrix
+cat("============== ORIGINAL MATRIX ===============\n\n")
+print(mat)
+cat("substring to find :", str[1], "\n\n")
+cat("==============================================\n")
+
 ## get return value from the function
-result <- substr_count_b(mat, str, 2)
+cat("count_substr_b(matrix, dir = 1)\n\n")
+result <- count_substr_b(mat, str, 1)
 print(result)
+cat("----------------------------------------------\n")
+cat("count_substr_b(matrix, dir = 2)\n\n")
+result <- count_substr_b(mat, str, 2)
+print(result)
+
 
 # Reference
 # https://stackoverflow.com/questions/2190756/how-to-count-true-values-in-a-logical-vector

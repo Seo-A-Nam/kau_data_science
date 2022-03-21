@@ -1,0 +1,142 @@
+---
+title: "assignment3"
+author: "Seoa Nam"
+date: '2022-03-21'
+output: html_document
+---
+
+# DEA of Data
+- make dea of data
+1. overall plot matrix
+2. mean and standard-deviation value
+3. overall correlation coefficient of each gender
+
+```{r data}
+
+## Install & Load Library
+install.packages("psych")
+library(psych)
+
+# Read file
+data <- read.csv(file = 
+	"/Users/namseoa/goinfre/3rd_week_R/weight-height.csv")
+
+## Overall plot matrix
+plot(data)
+
+## Subsetting by gender
+female <- data[data$Gender=="Female", ]
+male <- data[data$Gender=="Male", ]
+
+## Get mean and standard-deviation value (남녀 각 전체 평균치와 표준편차)
+describe(data) # count, mean, standard-deviation, , median-absolute-deviation, min, max, range, skewness, kurtosis, standard error
+# 개수, 평균, 표준편차, 중위수절대편차, 최소, 최대, 범위, 왜도, 첨도,  표준오차
+describeBy(data, data$Gender) # seperate groups
+describe(male) # male deviation
+describe(female) # female deviation
+
+## Overall correlation coefficient of each gender (남녀 전체 상관계수)
+cov(data$Height, data$Weight) # 공분산
+cor(data$Height, data$Weight, method = 'pearson') # 상관계수 (공분산의 표준화)
+cor(male$Height, male$Weight, method = 'pearson') # 남자 상관계수
+cor(female$Height, female$Weight, method = 'pearson') # 여자 상관계수
+
+```
+
+
+# Make histogram based on single variable - use cut-off
+1. Height based classification model.
+2. Weight based classification model.
+- which model is better? and why?
+
+```{r pressure, echo=FALSE}
+## Install & Load Library
+install.packages("ggplot2")
+library(ggplot2)
+install.packages("gridExtra")
+library(gridExtra)
+
+## Read file dataset
+df <- read.csv(file = 
+	"/Users/namseoa/goinfre/3rd_week_R/weight-height.csv")
+
+## Subsetting by gender
+female <- df[df$Gender=="Female", ]
+male <- df[df$Gender=="Male", ]
+
+## Create plot (Weight plot)
+wplot <- ggplot(df, aes(x=Weight, fill=Gender, color=Gender)) + 
+	geom_histogram(alpha=0.5, position="identity", bins=30) + 
+	geom_vline(xintercept = 66.5) +
+  geom_text(x=68, y=100, aes(label=66.5), colour="black")
+
+## Create plot (Height plot)
+hplot <- ggplot(df, aes(x=Height, fill=Gender, color=Gender)) + 
+	geom_histogram(alpha=0.5, position="identity", bins=30) + 
+	geom_vline(xintercept = 162.5) +
+	geom_text(x=175, y=100, aes(label=162.5), colour="black")
+
+## Display 2 plots in side
+grid.arrange(wplot, hplot, ncol=1, nrow=2)
+
+### caclulate error rate by cut-off value
+error_w_f <- nrow(female[female$Weight > 66.5, ])
+error_w_m <- nrow(male[male$Weight < 66.5, ])
+error_rate_weight = ((error_w_f + error_w_m) / nrow(df))
+
+error_h_f <- nrow(female[female$Height > 162.5, ])
+error_h_m <- nrow(male[male$Height < 162.5, ])
+error_rate_height = ((error_h_f + error_h_m) / nrow(df))
+
+cat("error_rate (weight) :", error_rate_weight, "\n")
+cat("error_rate (height) :", error_rate_height, "\n") 
+
+```
+
+
+# Make scatter plot of 2 class in 1 plot.
+1. display each point of the class in different color
+2. choose your lines of decision boundary and draw.
+3. why did you choose that line? -- 
+
+``` {r splot}
+## Install & Load Library
+install.packages("ggplot2")
+library(ggplot2)
+
+# read file dataset
+df <- read.csv(file = 
+	"/Users/namseoa/goinfre/3rd_week_R/weight-height.csv")
+
+female <- df[df$Gender=="Female", ]
+male <- df[df$Gender=="Male", ]
+
+## Create plot
+splot <- ggplot(df, aes(Height, Weight, colour=Gender)) + geom_point(size=0.1, alpha=1)	
+splot <- splot + geom_abline(intercept = -100, slope=1, color="black", size=0.5) # decision boundary - 직선결정경계 (직접 임의로 그은 직선)
+	# equation : Height(y) = Weight(x) * 1 - 100
+
+# Error rate (of classification)
+m_error <- nrow(male[male$Weight > (male$Height -100), ])
+f_error <- nrow(female[female$Weight < (female$Height -100), ])
+error_rate <- ((m_error + f_error) / nrow(df))
+cat("The error rate :\n", error_rate, "\n")
+
+# print(splot) <- to watch plots in VScode, execute this line.
+```
+
+# reference
+(1)
+- My team member told me about cov() and describe()
+
+(2)
+- http://www.sthda.com/english/wiki/ggplot2-histogram-plot-quick-start-guide-r-software-and-data-visualization
+- http://www.sthda.com/english/wiki/ggplot2-add-straight-lines-to-a-plot-horizontal-vertical-and-regression-lines
+- https://www.r-bloggers.com/2019/08/find-the-intersection-of-overlapping-histograms-in-r-2/
+- https://www.datasciencemadesimple.com/delete-or-drop-rows-in-r-with-conditions-2/
+- https://stackoverflow.com/questions/18091721/align-geom-text-to-a-geom-vline-in-ggplot2
+
+(3)
+- https://stackoverflow.com/questions/6919025/how-to-assign-colors-to-categorical-variables-in-ggplot2-that-have-stable-mappin
+- http://www.sthda.com/english/wiki/ggplot2-add-straight-lines-to-a-plot-horizontal-vertical-and-regression-lines
+- https://ggplot2.tidyverse.org/reference/geom_point.html

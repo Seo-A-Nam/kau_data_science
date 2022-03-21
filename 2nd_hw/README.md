@@ -1,9 +1,13 @@
-# 2nd week assignment : use apply function
+# 2nd week assignment : practice apply function
 
 * practice using apply() instead of for()
 * bc it's just to help pratice, use rational/proper interpretion or assumption in the stage of progress.
 
-## for matrix of random number
+## Result
+![image (1)](https://user-images.githubusercontent.com/65381957/159249126-50bcdc55-e07e-41ef-9808-b3f028fdb8ec.png)
+
+
+## for the numeric matrix
 a) write 1 function that gets each sum of positive value and negative value, either in each row or in each column. Row or column can be chosen as a parameter of the function.
 
 ex)
@@ -16,13 +20,14 @@ ex)
 
 b) write the same function using apply(), possibly without using for() this time.
 
-## for matrix of random char 
+## for the charactor matrix
 
 a) write function that returns the number of elements, which includes particular strings in each row or column. Row or column can be chosen as a parameter of the function.
 
 b) write the same function using apply(), possibly without using for() this time.
 
 _____
+
 
 # 2주차 과제 : apply() 함수의 이용
 

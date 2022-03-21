@@ -5,8 +5,8 @@
 # !!! USE FOR() LOOP OR OTHER FUNCTIONS !!!
 # =========================================================================
 
-## function definition
-substr_count_a <- function(matrix, str, dir) {
+## function for the charactor matrix
+count_substr_a <- function(matrix, str, dir) {
 	res <- c()
 	if (dir == 1)
 	{
@@ -33,12 +33,26 @@ substr_count_a <- function(matrix, str, dir) {
 	return (res)
 }
 
+# ==========================================================================
+
 ## set matrix
-mat <- matrix(data = c('행복', '행아웃', '행가레', '행복이란 무엇일까요',
-	'무엇', '일까요', '나', '나라는 존재', '존재론적 사고'), nrow = 3, ncol = 3)
-str <- c('행')
+mat <- matrix(data = c('happy', 'hangout', 'hangover', 'what is happiness',
+	'what', 'is', 'me', 'That is me', 'That'), nrow = 3, ncol = 3)
+str <- c('what')
+
+## display matrix
+cat("============== ORIGINAL MATRIX ===============\n\n")
+print(mat)
+cat("substring to find :", str[1], "\n\n")
+cat("==============================================\n")
+
 ## get return value from the function
-result <- substr_count_a(mat, str, 2)
+cat("count_substr_a(matrix, dir = 1)\n\n")
+result <- count_substr_a(mat, str, 1)
+print(result)
+cat("----------------------------------------------\n")
+cat("count_substr_a(matrix, dir = 2)\n\n")
+result <- count_substr_a(mat, str, 2)
 print(result)
 
 # Reference

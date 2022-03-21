@@ -5,7 +5,7 @@
 # !!! USE FOR() LOOP OR OTHER FUNCTIONS !!!
 # =========================================================================
 
-## function for matrix of random numbers
+## function for the numeric matrix
 sum_posneg_a <- function(matrix, dir) {
 	mat1 <- matrix(nrow = nrow(matrix), ncol = 2)
 	mat2 <- matrix(nrow = 2, ncol = ncol(matrix))
@@ -36,10 +36,23 @@ sum_posneg_a <- function(matrix, dir) {
 	return (matrix)
 }
 
+# ==========================================================================
+
 ## set matrix
 mat <- matrix(data = c(1, -1, 1, -1, 1, 1, -2, 1, 1), nrow = 3, ncol = 3)
+
+## display matrix
+cat("============== ORIGINAL MATRIX ===============\n\n")
+print(mat)
+cat("==============================================\n")
+
 ## get return value from made function
+cat("sum_posneg_a(matrix, dir = 1)\n\n")
 result <- sum_posneg_a(mat, 1)
+print(result)
+cat("----------------------------------------------\n")
+cat("sum_posneg_a(matrix, dir = 2)\n\n")
+result <- sum_posneg_a(mat, 2)
 print(result)
 
 # Reference
