@@ -54,8 +54,3 @@ cat("----------------------------------------------\n")
 cat("count_substr_a(matrix, dir = 2)\n\n")
 result <- count_substr_a(mat, str, 2)
 print(result)
-
-# Reference
-# https://stackoverflow.com/questions/10128617/test-if-characters-are-in-a-string
-# https://www.geeksforgeeks.org/how-to-find-substring-in-r-programming/
-# https://intellipaat.com/community/5004/how-to-count-true-values-in-r

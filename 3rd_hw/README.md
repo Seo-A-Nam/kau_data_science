@@ -64,7 +64,7 @@ _______
 -> 각 집단의 성별 비율을 맞추어 scaling 하여 모델을 만든다.
 
 
-## reference
+# Reference (참고한 자료)
 (1)
 - My team member told me about cov() and describe()
 

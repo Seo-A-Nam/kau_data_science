@@ -44,10 +44,3 @@ error_rate_height = ((error_h_f + error_h_m) / nrow(df))
 
 cat("error_rate (weight) :", error_rate_weight, "\n")
 cat("error_rate (height) :", error_rate_height, "\n") 
-
-# reference
-# http://www.sthda.com/english/wiki/ggplot2-histogram-plot-quick-start-guide-r-software-and-data-visualization
-# http://www.sthda.com/english/wiki/ggplot2-add-straight-lines-to-a-plot-horizontal-vertical-and-regression-lines
-# https://www.r-bloggers.com/2019/08/find-the-intersection-of-overlapping-histograms-in-r-2/
-# https://www.datasciencemadesimple.com/delete-or-drop-rows-in-r-with-conditions-2/
-# https://stackoverflow.com/questions/18091721/align-geom-text-to-a-geom-vline-in-ggplot2

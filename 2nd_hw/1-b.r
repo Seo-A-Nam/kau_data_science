@@ -48,8 +48,3 @@ cat("----------------------------------------------\n")
 cat("sum_posneg_b(matrix, dir = 2)\n\n")
 result <- sum_posneg_b(mat, 2)
 print(result)
-
-
-# Reference 
-# https://velog.io/@yummygyudon/R-Indexing-%EC%9C%BC%EB%A1%9C-%EC%9B%90%ED%95%98%EB%8A%94-%EC%A1%B0%EA%B1%B4%EC%9D%98-%EA%B0%92-%EC%B6%94%EC%B6%9C
-# https://stackoverflow.com/questions/42821560/how-to-remove-the-negative-values-from-a-data-frame-in-r

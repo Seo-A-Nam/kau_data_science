@@ -30,5 +30,3 @@ cor(female$Height, female$Weight, method = 'pearson') # 여자 상관계수
 
 # print(cor()) or print(describe()) <- execute this line to see output results in VScode
 
-# Reference
-## My team member told me about cov() and describe()

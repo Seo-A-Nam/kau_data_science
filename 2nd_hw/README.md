@@ -54,3 +54,21 @@ a) 각 행 또는 열에 대하여 특정 문자열을 포함하는 요소들의
 b) 위의 함수를 가능한 경우의 for 대신 apply 함수로 대체하여 사용하여 작성하라. 
 
 
+# Reference (참고한 자료)
+1-a
+- https://stackoverflow.com/questions/30156684/r-sum-positive-values-and-sum-negative-values
+
+1-b
+- https://velog.io/@yummygyudon/R-Indexing-%EC%9C%BC%EB%A1%9C-%EC%9B%90%ED%95%98%EB%8A%94-%EC%A1%B0%EA%B1%B4%EC%9D%98-%EA%B0%92-%EC%B6%94%EC%B6%9C
+- https://stackoverflow.com/questions/42821560/how-to-remove-the-negative-values-from-a-data-frame-in-r
+
+2-a
+- https://stackoverflow.com/questions/10128617/test-if-characters-are-in-a-string
+- https://www.geeksforgeeks.org/how-to-find-substring-in-r-programming/
+- https://intellipaat.com/community/5004/how-to-count-true-values-in-r
+
+2-b
+- https://stackoverflow.com/questions/2190756/how-to-count-true-values-in-a-logical-vector
+- https://stackoverflow.com/questions/10128617/test-if-characters-are-in-a-string
+- https://www.geeksforgeeks.org/how-to-find-substring-in-r-programming/
+- https://intellipaat.com/community/5004/how-to-count-true-values-in-r

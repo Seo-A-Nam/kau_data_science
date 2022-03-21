@@ -54,6 +54,3 @@ cat("----------------------------------------------\n")
 cat("sum_posneg_a(matrix, dir = 2)\n\n")
 result <- sum_posneg_a(mat, 2)
 print(result)
-
-# Reference
-# https://stackoverflow.com/questions/30156684/r-sum-positive-values-and-sum-negative-values

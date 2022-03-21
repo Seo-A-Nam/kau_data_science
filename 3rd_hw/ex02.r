@@ -28,8 +28,3 @@ error_rate <- ((m_error + f_error) / nrow(df))
 cat("The error rate :\n", error_rate, "\n")
 
 # print(splot) <- to watch plots in VScode, execute this line.
-
-# reference
-# https://stackoverflow.com/questions/6919025/how-to-assign-colors-to-categorical-variables-in-ggplot2-that-have-stable-mappin
-# http://www.sthda.com/english/wiki/ggplot2-add-straight-lines-to-a-plot-horizontal-vertical-and-regression-lines
-# https://ggplot2.tidyverse.org/reference/geom_point.html
