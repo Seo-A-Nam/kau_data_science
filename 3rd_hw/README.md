@@ -3,12 +3,14 @@
 (Eng ver.)
 ## output
 * DEA
-* error rate of classification (cutoff)
-* error rate of  classification (decision boundary)
+* error rate of classification (cutoff) - histogram
+* error rate of  classification (decision boundary) - scatter plot
 * Plots
 	![image](https://user-images.githubusercontent.com/65381957/159247564-45d5642f-a2aa-4eec-b76c-34f010be7cc7.png)
 	![KakaoTalk_Photo_2022-03-21-19-57-27](https://user-images.githubusercontent.com/65381957/159247680-623850c7-0057-46bc-bf7d-19b38f9f1d79.png)
 
+## Dataset source
+- https://github.com/omairaasim/machine_learning/blob/master/project_9_predict_weight_sex/weight-height.csv
 
 ## 1. DEA of data
 - make DEA of data
@@ -29,6 +31,16 @@
 _______
 
 (Kor ver.)
+## 결과값(또는 출력)
+* DEA
+* 히스토그램에서 cutoff로 분류한 결과의 분류 오차율
+* scatter plot에서 결정 경계(직선)으로 분류한 결과의 분류 오차율
+* Plots
+	![image](https://user-images.githubusercontent.com/65381957/159247564-45d5642f-a2aa-4eec-b76c-34f010be7cc7.png)
+	![KakaoTalk_Photo_2022-03-21-19-57-27](https://user-images.githubusercontent.com/65381957/159247680-623850c7-0057-46bc-bf7d-19b38f9f1d79.png)
+
+## Dataset 출처
+- https://github.com/omairaasim/machine_learning/blob/master/project_9_predict_weight_sex/weight-height.csv
 
 ## 1. Data에 대한 DEA
 * 전반적 DEA
