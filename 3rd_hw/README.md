@@ -11,7 +11,7 @@
 
 
 ## 1. DEA of data
-- make dea of data
+- make DEA of data
 1. overall plot matrix
 2. mean and standard-deviation value
 3. overall correlation coefficient of each gender
