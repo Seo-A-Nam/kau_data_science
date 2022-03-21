@@ -1,4 +1,4 @@
-# 3rd week assignment : Plot `data
+# 3rd week assignment : Plot data
 
 (Eng ver.)
 ## output
