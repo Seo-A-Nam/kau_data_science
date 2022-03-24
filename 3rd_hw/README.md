@@ -11,8 +11,8 @@
 
 ## Dataset source
 - https://github.com/omairaasim/machine_learning/blob/master/project_9_predict_weight_sex/weight-height.csv
--  ⚠️ I have mistaken that American data commonly use (inch) and (pound) unit for height and weight. that made me swap the Label of those two in given dataset, because here we use (kg) and (cm).
-- So make sure to get this in mind when watching these repo.
+-  ⚠️ I have mistaken that American data commonly use (inch) and (pound) unit for height and weight. That made me swap the Label of those two in given dataset, because here we use (kg) and (cm).
+- So make sure to keep this in mind when watching these repo.
 
 ## 1. DEA of data
 - make DEA of data
