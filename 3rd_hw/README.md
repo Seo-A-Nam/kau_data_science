@@ -30,6 +30,11 @@
 2. choose your lines of decision boundary and draw.
 3. why did you choose that line? 
 
+## 4. Apply those 2 models to KAU.
+
+-> make model after scaling dataset, in accordance to gender ratio in KAU.
+- I didn't make model yet just explained on PPT how to get that model.
+
 _______
 
 (Kor ver.)
@@ -66,7 +71,7 @@ _______
 
 -> 각 집단의 성별 비율을 맞추어 scaling 하여 모델을 만든다.
 
-- 모델을 만들지는 않고 그냥 항공대 성별집단 비율에 맞는 scaling 을 통해 이를 구할 수 있다는 결론만 설명했음.
+- 모델을 만들지는 않고 그냥 항공대 성별집단 비율에 맞는 scaling 을 통해 이를 구할 수 있다는 결론만 설명했음 - ppt 참고
 
 # Reference (참고한 자료)
 (1)
