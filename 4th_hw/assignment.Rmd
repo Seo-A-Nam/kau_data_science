@@ -160,7 +160,7 @@ ttesting <- as.factor(testing$Attrition)
 vval_var <- as.factor(val_var)
 cm <- confusionMatrix(ttesting, vval_var, positive = 'Yes')
 tree <- fancyRpartPlot(fit, type=2, box.palette = "auto")
-print(tree)
+#print(tree)
 print(cm) # print overview of confusion matrix
 ```
 
@@ -186,7 +186,6 @@ testing <- data[-idx, ]
 ## Train model
 fit <- rpart(Attrition~OverTime + MaritalStatus + TotalWorkingYears + YearsInCurrentRole, minsplit = 90, minbucket = 30, training)
 #fit <- rpart(Attrition~OverTime + MaritalStatus + TotalWorkingYears + YearsInCurrentRole, parms = list(split = 'information'), minsplit = 90, minbucket = 30, training)
-
 val_var <- predict(fit, newdata=testing, type='class') # apply the model to the test dataset
 ttesting <- as.factor(testing$Attrition)
 vval_var <- as.factor(val_var)
