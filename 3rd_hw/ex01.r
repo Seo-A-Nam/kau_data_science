@@ -10,8 +10,7 @@ install.packages("gridExtra")
 library(gridExtra)
 
 ## Read file dataset
-df <- read.csv(file = 
-	"/Users/namseoa/goinfre/3rd_week_R/weight-height.csv")
+df <- read.csv(file = "weight-height.csv")
 
 ## Subsetting by gender
 female <- df[df$Gender=="Female", ]

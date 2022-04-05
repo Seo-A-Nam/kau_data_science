@@ -5,8 +5,7 @@ install.packages("psych")
 library(psych)
 
 # Read file
-df <- read.csv(file = 
-	"/Users/namseoa/goinfre/3rd_week_R/weight-height.csv")
+df <- read.csv(file = "weight-height.csv")
 
 ## Overall plot
 plot(df)

@@ -9,8 +9,7 @@ install.packages("ggplot2")
 library(ggplot2)
 
 # read file dataset
-df <- read.csv(file = 
-	"/Users/namseoa/goinfre/3rd_week_R/weight-height.csv")
+df <- read.csv(file = "weight-height.csv")
 
 female <- df[df$Gender=="Female", ]
 male <- df[df$Gender=="Male", ]

@@ -12,7 +12,12 @@
 ## Dataset source
 - https://github.com/omairaasim/machine_learning/blob/master/project_9_predict_weight_sex/weight-height.csv
 -  ⚠️ I have mistaken that American data commonly use (inch) and (pound) unit for height and weight. That made me swap the Label of those two in given dataset, because here we use (kg) and (cm).
-- So make sure to keep this in mind when watching these repo.
+	- So make sure to keep this in mind when watching these repo.
+	- ❗️ I didn't fixed this problem in the code yet.
+		- How to fix code
+			1. make the name of two labels back to normal. and then re-draw line graph, which splits scatter plots by gender.
+			2. determine new cutoff line of histogram.
+			3. modify cut-off value of code that finds error-rate.
 
 ## 1. DEA of data
 - make DEA of data
@@ -32,7 +37,7 @@
 
 ## 4. Apply those 2 models to KAU.
 
--> make model after scaling dataset, in accordance to gender ratio in KAU.
+-> make model after scaling dataset, in accordance to gender ratio in KAU(korea aerospace university).
 - I didn't make model yet just explained on PPT how to get that model.
 
 _______
@@ -48,6 +53,15 @@ _______
 
 ## Dataset 출처
 - https://github.com/omairaasim/machine_learning/blob/master/project_9_predict_weight_sex/weight-height.csv
+- ⚠️ 미국 데이터가 키 몸무게에 inch, pound 단위를 쓰는 것을 몰라 헷갈렸다.
+	한국식 키 몸무게 데이터는 주로 cm와 kg를 쓰기 때문이다. 해당 데이터에서 키가 2자리수, 몸무게가 3자리수인 것을 보고 착각하여 임의로 두 column의 이름을 서로 바꾸어 plot을 만들게 된 것이다.
+	- 따라서, 이 레포를 보고 있거나 또는 참고하려는 사람들은 이 점을 주의하고 보기를 바란다.
+	- ❗️ 시간 관계 상 코드를 아직 수정하지 못했다.
+		- 코드를 수정하게 된다면
+			1. 두 라벨의 이름을 원래대로 바꾸고 scatter plot의 직선그래프를 새로 그려야한다.
+			2. histogram의 cut-off 라인을 새로 정한다.
+			3. 그에 따라 오차율 구하는 코드의 cut-off 값을 수정한다.
+
 
 ## 1. Data에 대한 DEA
 * 전반적 DEA
@@ -67,11 +81,12 @@ _______
 * 여러가지 직선(기울기, 절편)들 중 왜 그러한 직선을 선택하였는가? 이유
 * 오류율은?
 
-## 4. 위의 두 모델을 항공대에 적용하자.
+## 4. 위의 두 모델을 항공대(kau)에 적용하자.
 
 -> 각 집단의 성별 비율을 맞추어 scaling 하여 모델을 만든다.
 
 - 모델을 만들지는 않고 그냥 항공대 성별집단 비율에 맞는 scaling 을 통해 이를 구할 수 있다는 결론만 설명했음 - ppt 참고
+- 모델을 만들 수 있으면 scaling한 dataset을 통해 새로 만들어, 이를 histogram을 통해 시각화하기까지 하면 더욱 좋다.
 
 # Reference (참고한 자료)
 (1)

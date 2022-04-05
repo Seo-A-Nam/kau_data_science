@@ -18,8 +18,7 @@ install.packages("psych")
 library(psych)
 
 # Read file
-data <- read.csv(file = 
-	"/Users/namseoa/goinfre/3rd_week_R/weight-height.csv")
+data <- read.csv(file = "weight-height.csv")
 
 ## Overall plot matrix
 plot(data)
