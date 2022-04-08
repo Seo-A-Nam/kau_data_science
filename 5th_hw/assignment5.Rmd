@@ -122,6 +122,8 @@ for (k in 1:10){
 }
 colnames(check_list) <- c("minsplit", "minbucket", "maxdepth", "Accuracy")
 print(check_list[check_list[, 4] > 0.74, ])
+# maxdepth가 큰 조합은 minsplit, minbucket 값만 이용해 사전 가지치기full tree를 만들 때 사용
+# maxdepth가 작은 조합은 사전 가지치기 tree를 만들 때 사용.
 
 ```
 
@@ -201,7 +203,7 @@ lda_data <- learning_curve_dat(dat = train,
                                metric = "Accuracy",
                                control = rpart.control(minsplit = 1, minbucket = 2, mindepth = 6, parms = list(split=list(split ='information'))))
 
-lda_data <- lda_data[!(lda_data$Data == "Resampling"),]#Resampling 항목 삭제
+lda_data <- lda_data[!(lda_data$Data == "Resampling"),] #Resampling 항목 삭제
 
 ggplot(lda_data,aes(x =Training_Size, y=Accuracy, color = Data)) + geom_smooth(method=loess, span = .8) + ylim(0,1)
 
@@ -213,7 +215,7 @@ lda_data <- learning_curve_dat(dat = train,
                                metric = "Accuracy",
                                control = rpart.control(cp = 0.067, parms = list(split=list(split ='information'))))
 
-lda_data <- lda_data[!(lda_data$Data == "Resampling"),]#Resampling 항목 삭제
+lda_data <- lda_data[!(lda_data$Data == "Resampling"),] #Resampling 항목 삭제
 
 ggplot(lda_data,aes(x =Training_Size, y=Accuracy, color =Data)) + geom_smooth(method=loess,span = .8) + ylim(0,1)
 
