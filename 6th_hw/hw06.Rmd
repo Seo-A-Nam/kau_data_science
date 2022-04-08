@@ -102,6 +102,20 @@ nomi_data <- transform(nomi_data,
 nomi_data
 
 ```
-seq(min(data$sepal_length), max(data$sepal_length), length=5)
 
 
+```{r}
+# 베이지안 확률 계산
+df <- table("sepal_length"=nomi_data$sepal_length, "sepal_width"=nomi_data$sepal_width)
+size <- c("S", "M", "L")
+nb_table <- matrix(0, nrow(df), ncol(df))
+for (i in 1:3){ # df의 row, col 수는 같다고 가정
+  for (j in 1:3){
+    val <- c((df[j][i] * sum(df[i, ]))/sum(df[, j]))
+    print((df[j][i] * sum(df[i, ]))/sum(cp_[, j]))
+    cat("i=",i,"\tj=",j,"\tval=",val[0],"\n")
+    #nb_table[i][j] = val
+    # 수정 중
+  }
+}
+```
