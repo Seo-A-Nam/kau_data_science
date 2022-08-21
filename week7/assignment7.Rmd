@@ -1,0 +1,450 @@
+# 라이브러리 불러오기
+```{r}
+# load library
+library(dlookr) #결측치 확인
+
+library(ggplot2)
+library(rpart)
+library(tidyverse)
+library(rpart.plot)#의사결정 나무
+library(caret)
+library(rattle)
+
+library(dplyr) # 피어슨 상관계수
+library(psych)
+library(corrplot) # 상관계수를 plot
+library(creditmodel)
+
+library(nnet) #신경망
+library(devtools) #시각화
+source_url('https://gist.githubusercontent.com/Peque/41a9e20d6687f2f3108d/raw/85e14f3a292e126f1454864427e3a189c2fe33f3/nnet_plot_update.r')
+library(reshape)
+library(reshape2)
+library(NeuralNetTools) #변수 중요도 확인
+
+library(kernlab)#SVM
+library(e1071) # SVM 파라미터 최적화
+
+```
+
+# 데이터셋 불러오기
+```{r}
+rm(list=ls())
+df <-read.csv("coupon.csv",header = T)
+str(df)
+```
+
+# 데이터 전처리
+
+```{r}
+#명목형 데이터 팩터 변환
+df[sapply(df, is.character)] <- lapply(df[sapply(df, is.character)], 
+                                       as.factor)
+df$Y <- as.factor(df$Y)
+
+#순서형 데이터 변환
+df$income <- as.ordered(df$income)
+str(df)
+```
+
+```{r}
+##duplicated 함수를 이용한 중복 값 확인
+
+df %>% duplicated()
+duplicates <- df %>% duplicated() %>% table()
+duplicates
+
+##h distinct()함수를 이용해 중복값을 제거
+## 총 74개의 변수 생략
+df %>% distinct()
+```
+
+```{r}
+## 결측치 측정 
+## 각 컬럼별 결측치는 포함되어 있지 않았다.
+diagnose(df)
+```
+
+# EDA (데이터 탐색)
+```{r}
+
+dim(df) #df의 size
+
+print("데이터셋 요약")
+summary(df)
+
+print("컬럼별 특징 보기")
+str(df) # 컬럼별 특징 보기
+colnames(df)
+levels(df$Y) # 종속 변수의 종류 파악 (0, 1의 이진형 변수)
+
+
+# Box Plot을 통해 데이터 분석 (극단치 여부)
+temp <- df
+temp[sapply(temp, is.integer)] <- lapply(df[sapply(df, is.integer)], 
+                                       as.factor) # int 값들을 factor 변환
+boxplot(temp)
+```
+# 1) 상관계수 구하기 : crammer's V와 Pearson으로 명목형 변수들을 포함한 상관계수 구하기
+cramer's V를 사용해 Y와 명목형 변수들 사이의 상관계수 표 먼저 구한다.
+그 다음 수치형 변수들을 찾아내 그것들과 Y의 Pearson 상관계수 표를 구함.
+이 두 상관계수 표를 Y에 대한 상관계수 표로 만든다. 이를 히스토그램으로 시각화한다.
+참고로, cramer's V로 상관계수 구하는 건 코드 실행시간이 좀 걸리니 좀 기다려야한다.
+
+- cramer's V 상관계수
+// reference : https://search.r-project.org/CRAN/refmans/creditmodel/html/char_cor_vars.html
+```{r}
+# cramer's V를 통해 명목형 변수들로 상관계수표 출력
+temp <- df
+char_x_list = get_names(dat = df, types = c('factor', 'ordered'), get_ex = FALSE)
+char_x_list # 명목형, 범주형 변수 리스트
+cor <- char_cor(dat = df[char_x_list])
+cor
+
+cors <- cor[19, ] # Y에 대한 명목형 변수들의 상관계수
+barplot(cors[-19], xlab = "non-numeric variables", ylab = "cor-values", main ="cor-value chart1")
+# 번주형/명목형 변수에 대한 상관계수 bar plot
+```
+
+#피어슨 상관계수
+크래머 v는 범위 0~1을 갖고, 피어슨은 -1~1의 범위를 갖는 다는 점을 유의하자.
+피어슨을 0~1의 범위로 정규화 할 수도 있지만, 그렇게 되면 낮은 피어슨 상관계수도 1이 될 가능성이 있다. 
+그러면 크래머v와 비교할 때 올바르지 못한 비교가 이루어질 수 있을 것이다. 
+그렇기 때문에 정규화하지 않고, 크래머와 피어슨은 따로 비교하기로 한다.
+```{r}
+# 수치형 변수들을 파악
+nums <- unlist(lapply(df, is.numeric))
+names(df[, nums])  
+ncol(names(df[, nums]))
+numeric_cols <- df[, nums]
+
+# 수치형 변수들과 Y에 대한 상관계수표 구하기
+data_pearson = cbind(numeric_cols, Y=as.integer(df$Y))
+str(data_pearson)
+pearson <- as.data.frame(cor(data_pearson[, c(1:ncol(data_pearson))], use = "all.obs", method = "pearson"))
+
+corPlot(pearson) # 피어슨 상관계수표 시각화
+
+y_pearson <- pearson$Y
+names(y_pearson) = c("temperature","has_children","toCoupon_GEQ5min","toCoupon_GEQ15min","toCoupon_GEQ25min","direction_same","direction_opp") 
+barplot(y_pearson[-8], xlab = "numeric variables", ylab = "cor-values", main ="cor-value chart2") # 수치형 예측 변수에 대한 상관계수 bar plot
+
+# 타겟 변수 Y에 대한 두 상관계수 비교
+pearson_cor <- y_pearson[-8]
+cramerV_cor <- cors[-19]
+as.data.frame(pearson_cor) # 피어슨 상관계수
+as.data.frame(cramerV_cor) # 크래머 V 상관계수
+
+## 예측변수 선택 - 상관계수 절대값 0.03(피어슨), 0.15(크래머) 이상인 속성들
+pearson_cor <- pearson_cor[!is.na(pearson_cor)] # NA 제거 (표준편차가 0인 값들은 NA가 됨)
+
+cat("피어슨 상관계수 - 절대값 큰 순서대로\n")
+sort(pearson_cor[pearson_cor>=0],decreasing=TRUE)
+sort(pearson_cor[pearson_cor<0])
+cat("\n")
+cat("크래머 상관계수 - 큰 순서대로\n")
+sort(cramerV_cor,decreasing=TRUE)
+cat("\n")
+
+cat("\n상관계수 절대값 0.1 이상인 속성들\n")
+cat(names(pearson_cor[pearson_cor>=0.1]), names(pearson_cor[pearson_cor<=-0.1]), "\n")
+cat(names(cramerV_cor[cramerV_cor>=0.1]), "\n")
+
+## 피어슨 상관계수: toCoupon_GEQ25min 
+## 크래머 V 상관계수: destination passanger weather time coupon expiration CoffeeHouse 
+```
+
+#필요데이터 추출, 데이터 분할
+```{r}
+set.seed(1234)
+
+df <- data.frame("toCoupon_GEQ25min"=as.factor(df$toCoupon_GEQ25min), "destination"=df$destination, "passanger"=df$passanger, "weather"=df$weather, "time"=df$time, "coupon"=df$coupon, "expiration"=df$expiration, "CoffeeHouse"=df$CoffeeHouse, "Y"=df$Y) # 필요 데이터 추출
+str(df)
+idx <- sample(1:nrow(df), size = nrow(df) * 0.7, replace = FALSE)
+
+train <- df[idx,]
+test <- df[-idx,]
+nrow(train)
+nrow(test)
+```
+
+#의사결정 나무 parameter 최적화
+https://rpubs.com/JiawenQi/GridSearchIris 를 참고.
+```{r}
+# create the grid
+set.seed(1234)
+gs <- list(minsplit=c(1,2,3,4), minbucket=c(6,8,10,12), maxdepth=c(1,2,3,4,5)) %>%
+    cross_df() # Convert to data frame grid
+gs # grid
+# create a model function
+mod <- function(...) {
+  rpart(Y~., data=train, control=rpart.control(...))
+}
+# fit the models
+gs <- gs %>% mutate(fit=pmap(gs, mod))
+
+# obtain accuracy
+compute_accuracy <- function(fit, test_features, test_labels) {
+  predicted <- predict(fit, test_features, type="class")
+  mean(predicted == test_labels)
+}
+test_features <- test %>% select(-Y)
+test_labels <- test$Y
+gs <- gs %>%
+    mutate(test_accuracy = map_dbl(fit, compute_accuracy, test_features, test_labels))
+
+# arrange results
+gs <- gs %>% arrange(desc(test_accuracy), desc(minsplit), maxdepth)
+gs # grid로 만든 정확도 표
+
+# pre-pruning 결과 : maxdepth가 크고 더 정확도가 높은 모델 대신에, 더 단순한 모델인 minsplit=4, minbucket=6 maxdepth=3에 정확도 0.6684183인 조합 사용
+```
+#의사결정나무 cp 최적화
+```{r}
+df.model <- rpart(Y~.,
+                  method = "class",
+                  data = train, minsplit=4, minbucket=6, maxdepth=3)
+printcp(df.model)
+plotcp(df.model)
+```
+# decision tree의 split criterion 비교 (gini와 information)
+```{r}
+df.model <- rpart(Y~.,
+                  method = "class",
+                  data = train, parms = list(split='information'), minsplit=4, minbucket=6, maxdepth=3, cp=0.013)
+rpartpred<-predict(df.model, test, type='class')
+c1 <- confusionMatrix(rpartpred, test$Y)
+c1$overall[1]
+
+df.model <- rpart(Y~.,
+                  method = "class",
+                  data = train, parms = list(split='gini'), minsplit=4, minbucket=6, maxdepth=3, cp=0.013)
+rpartpred<-predict(df.model, test, type='class')
+c2 <- confusionMatrix(rpartpred, test$Y)
+c2$overall[1]
+
+# 결론 : 주어진 parameter와 함꼐 적용했을 때, gini의 정확도가 더 높다. 따라서 default인 gini를 선택.
+
+```
+
+#의사결정나무 학습곡선
+```{r} 
+## 사전 가지치기 Learning Curve 
+set.seed(2022)
+lda_data <- learning_curve_dat(dat = train, 
+                               outcome = "Y",
+                               test_prop = 1/8,
+                               method = "rpart", 
+                               metric = "Accuracy",
+                               control = rpart.control(minsplit = 4, minbucket=6, maxdepth = 3, cp=0.013))
+
+lda_data <- lda_data[!(lda_data$Data == "Resampling"),] #Resampling 항목 삭제
+
+ggplot(lda_data,aes(x =Training_Size, y=Accuracy, color = Data)) + geom_smooth(method=loess, span = .2) + ylim(0.6, 0.7)
+
+```
+
+#의사결정나무 모델링
+```{r}
+df.model <- rpart(Y~.,
+                  method = "class",
+                  data = train, minsplit=4, minbucket=6, maxdepth=3, cp=0.013)
+
+df.model
+fancyRpartPlot(df.model)
+rpartpred<-predict(df.model, test, type='class')
+tree_cm <- confusionMatrix(rpartpred, test$Y)
+tree_cm
+```
+
+
+#인공신경망
+
+```{r}
+#base model
+modelLookup("nnet")
+
+# optimization
+trControl=trainControl(method='repeatedcv', number = 10, repeats = 2)
+model = train(Y ~.,
+              data = train,
+              method = 'nnet',
+              maxit = 250,
+              metric = 'Accuracy',
+              preProcess = c('center', 'scale'), # data normalization
+              # We dont need to this, because the data is already scaled
+              trControl = trControl,
+              tuneLength = 3
+)
+
+# show model 
+model
+```
+
+```{r}
+model$finalModel
+model$finalModel$convergence
+```
+
+```{r}
+pred <- predict(model$finalModel, data = train$Y, type = "class") 
+pred <- factor(pred, levels = c("toCoupon_GEQ25min", "destination", "passanger", "weather", "time", "coupon", "expiration", "CoffeeHouse", "Y"))
+pred
+print(data.frame(train, pred))
+```
+
+# ANN maxit 최적화 (seed - 1234에서의 최적 maxit)
+```{r}
+set.seed(1234)
+
+trControl=trainControl(method='repeatedcv', number = 10, repeats = 2)
+nnetGrid <-  expand.grid(size = c(1),
+                        decay = c(0.1))
+
+maxit_range = seq(0, 500, 50)
+
+learn_curve <-data.frame(maxit=double(length(maxit_range)),
+                         accuracy = double(length(maxit_range)))
+idx = 0
+for(i in maxit_range) {
+  learn_curve$maxit[idx] = i
+  model = train(Y ~.,
+                data = train,
+                method = 'nnet',
+                maxit = i,
+                metric = 'Accuracy',
+                preProcess = c('center', 'scale'),
+                trControl = trControl,
+                tuneGrid=nnetGrid,
+                tuneLength = 3
+                )
+  learn_curve$accuracy[idx] <- max(model$results$Accuracy)
+  idx = idx + 1
+}
+
+learn_curve <- learn_curve[1:10,]
+g<-ggplot(data=learn_curve)
+g<-g+geom_line(mapping=aes(x=maxit,y=accuracy))
+g[["labels"]] = list(x='Maxit', y='Accuracy')
+g<-g+stat_smooth(data=learn_curve,mapping=aes(x=maxit,y=accuracy))
+g
+```
+
+
+```{r}
+library(nnet) #신경망
+library(devtools) #시각화
+source_url('https://gist.githubusercontent.com/Peque/41a9e20d6687f2f3108d/raw/85e14f3a292e126f1454864427e3a189c2fe33f3/nnet_plot_update.r')
+library(reshape)
+library(reshape2)
+library(NeuralNetTools) #변수 중요도 확인
+
+#Plot Variable performance
+X <- varImp(model$finalModel)
+X
+plot(X)
+
+names(getModelInfo("svm"))
+set.seed(1234)
+
+nn.model <- nnet(Y~., data = train, size = 1, maxit = 400, decay= 0.1)
+
+plot.nnet(nn.model)
+garson(nn.model)
+
+pred.nn<-as.factor(predict(nn.model, test[,-9], type = "class"))
+ann_cm <- confusionMatrix(data = pred.nn, reference=test[,9])
+ann_cm
+```
+
+# ANN 학습 곡선 (epoch vs 성능)
+```{r}
+library(caret)
+set.seed(1234)
+
+trControl=trainControl(method='repeatedcv', number = 10, repeats = 2)
+nnetGrid <-  expand.grid(size = c(1),
+                        decay = c(0.1))
+lda_data <- learning_curve_dat(dat = train, 
+                               outcome = "Y",
+                               test_prop = 1/6,
+                               method = "nnet",
+                               maxit=400,
+                               metric = "Accuracy",
+                              trControl = trControl,
+                              tuneGrid=nnetGrid,
+                              tuneLength = 3, verbose = FALSE)
+
+lda_data <- lda_data[!(lda_data$Data == "Resampling"),] #Resampling 항목 삭제
+ggplot(lda_data,aes(x=Training_Size, y=Accuracy, color = Data)) + geom_smooth(method=loess, span = .2) + ylim(0.65, 0.725)
+
+```
+#SVM 모델 생성
+```{r}
+svm_model <- svm(Y ~ ., data=train)
+svm_model
+
+s <- subset(df, select=-Y)
+table(predict(svm_model,s), df$Y)
+```
+# SVM 커널함수 파라미터 최적화
+```{r}
+radial_result <- tune.svm(Y ~ toCoupon_GEQ25min+ destination+ passanger+ weather+ time+ coupon+ expiration+ CoffeeHouse, data=train, gamma = 2^(-1:1), cost=2^(-1:7), kernel = "radial")
+radial_result
+# gamma=0.5, cost=0.5
+```
+
+```{r}
+sig_result <- svm(Y ~  toCoupon_GEQ25min+ destination+ passanger+ weather+ time+ coupon+ expiration+ CoffeeHouse, data=train, cost = 2^(2:6), kernel='sigmoid')
+sig_result
+# cost: 4 8 16 32 64 
+```
+
+```{r}
+poly_result <- tune.svm(Y ~ toCoupon_GEQ25min+ destination+ passanger+ weather+ time+ coupon+ expiration+ CoffeeHouse, data=train, degree = 2:4, cost = 2^(2:6), kernel="polynomial")
+poly_result
+# degree=3, cost=64
+```
+
+# SVM 커널 함수별 파라미터 적용
+```{r}
+m_r <- svm(Y ~  toCoupon_GEQ25min+ destination+ passanger+ weather+ time+ coupon+ expiration+ CoffeeHouse, data=train, gamma=0.5, cost=0.5, kernel ="radial")
+```
+
+```{r}
+m_s <- svm(Y ~  toCoupon_GEQ25min+ destination+ passanger+ weather+ time+ coupon+ expiration+ CoffeeHouse, data=train, cost=4, kernel ="sigmoid")
+```
+
+```{r}
+m_p <- svm(Y ~  toCoupon_GEQ25min+ destination+ passanger+ weather+ time+ coupon+ expiration+ CoffeeHouse, data=train, cost=64, degree = 3, kernel ="polynomial")
+summary(m_r)
+summary(m_s)
+summary(m_p)
+
+pred_mr <- predict(m_r, test)
+pred_ms <- predict(m_s, test)
+pred_mp <- predict(m_p, test)
+```
+
+# SVM 성능 평가
+```{r}
+library(Epi)
+ROC(test=pred_mr, stat=test$Y, plot="ROC", AUC=T, main="SVM")
+ROC(test=pred_ms, stat=test$Y, plot="ROC", AUC=T, main="SVM")
+ROC(test=pred_mp, stat=test$Y, plot="ROC", AUC=T, main="SVM")
+c1 <- confusionMatrix(pred_mr, test$Y)
+c2 <- confusionMatrix(pred_ms, test$Y)
+c3 <- confusionMatrix(pred_mp, test$Y)
+
+c1
+c2
+c3
+# radial 커널 정확도 : 0.6981 / sigmoid 사용 시 정확도가 0.6739 / polynomial 사용 시 : 0.6999
+# polynomial과 그 최적 parameter 조합을 선택한다.
+```
+
+# 성능비교 (DT, ANN, SVM)
+```{r}
+acc_data = c("DT"=tree_cm$overall[1], "ANN"=ann_cm$overall[1], "SVM"=c3$overall[1])
+acc_data
+```

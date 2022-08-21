@@ -1,0 +1,11 @@
+candidate,income,age,job,sex
+A,중,18,O,F
+A,중,55,X,F
+A,중,29,X,M
+A,하,45,X,F
+A,하,22,X,F
+B,상,20,X,F
+B,상,50,O,M
+B,중,51,O,M
+B,중,33,O,M
+B,하,25,X,M

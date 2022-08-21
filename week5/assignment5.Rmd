@@ -1,0 +1,232 @@
+
+# 라이브러리 불러오기
+```{r}
+ #install packages
+install.packages("dplyr")
+install.packages("readr")
+install.packages("tidyr")
+install.packages(("Benchmarking"))
+install.packages("mice")
+install.packages("caret")
+install.packages("rsample")
+install.packages("rpart.plot")
+install.packages("dplyr")
+install.packages("MLmetrics")
+
+# load library
+library(rpart)         # Decision Tree
+library(rpart.plot)    # Decision Tree plotting 
+library(rsample)      # for 층화 추출
+library(caret)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(MLmetrics)
+library(tidyr)
+library(Benchmarking)
+library(mice)
+library(rpart.plot) # ruleset 추출
+library(dplyr) # 피어슨 상관계수
+
+```
+
+# 데이터셋 불러오기
+```{r}
+rm(list=ls())
+df <-read.csv("Fish.csv",header = T)
+```
+
+# 데이터 전처리
+```{r}
+##duplicated 함수를 이요한 중복 값 확인
+##중복값은 없음을 알 수 있다.
+df %>% duplicated()
+duplicates <- df %>% duplicated() %>% table()
+duplicates
+
+##h distinct()함수를 이용해 중복값을 제거
+## 총 17개의 변수 생략
+df %>% distinct()
+
+## 결측치 측정 
+## 각 컬럼별 결측치는 포함되어 있지 않았다.
+col_na <- function(y) {
+  return(sum(is.na(y)))
+}
+
+na_count <- sapply(df, FUN = col_na)
+na_count
+
+##데이터셋의 깨지는 컬럼명을 변경
+names(df)[1] <- c("Species")
+head(df)
+
+```
+
+# EDA (데이터 탐색)
+```{r}
+
+dim(df) #df의 size
+
+print("데이터셋 요약")
+summary(df)
+
+print("컬럼별 특징 보기")
+str(df) # 컬럼별 특징 보기
+
+#데이터 탐색 - 기술적 통계 (피어슨 상관계수)
+cor(df %>% select(-Species), use = "all.obs", method = "pearson")
+
+
+```
+
+# Decision Tree - train set과 test set 나누기
+```{r}
+# loan_status를 기준으로    
+set.seed(1000)
+split <- initial_split(data = df, 0.7, strata = "Species")
+
+# trained data 
+train <- training(split)
+# test data 
+test <- testing(split)
+
+print("### 훈련용 데이터 정보 ###")
+summary(train)
+str(train)
+
+print("### 테스트용 데이터 정보 ###")
+summary(test)
+str(test)
+```
+
+# Decision Tree 01 - 사전 가지치기 (rpart 파라미터 최적화)
+
+```{r}
+## 사전 가지치기 파라미터 최적화
+check_all <- function(df, ms, mb, md){
+    train.control<-rpart.control(minsplit = ms, minbucket = mb, maxdepth=md)
+    tmp_tree <- rpart(Species ~ ., data = df, method="class", control=train.control)
+    pre_tree <- predict(tmp_tree, test, type='class')
+    accuracy = confusionMatrix(as.factor(test$Species), pre_tree)$overall[1]
+      
+    row <- c(ms, mb, md, accuracy)
+    return(row)
+}
+check_list <- c()
+for (k in 1:10){
+  for(j in 2:10){
+    for(i in 1:10){
+        check_list<-rbind(check_list, check_all(df, i, j, k))
+    }
+  }
+}
+colnames(check_list) <- c("minsplit", "minbucket", "maxdepth", "Accuracy")
+print(check_list[check_list[, 4] > 0.74, ])
+# maxdepth가 큰 조합은 minsplit, minbucket 값만 이용해 사전 가지치기full tree를 만들 때 사용
+# maxdepth가 작은 조합은 사전 가지치기 tree를 만들 때 사용.
+
+```
+
+- 사전 가지치기 모델 생성
+```{r}
+# 모델 생성
+train.control<-rpart.control(minsplit=1, minbucket = 2, maxdepth = 6)
+pre_tree <- rpart(Species ~ ., data = df, method="class", control=train.control)
+printcp(pre_tree)
+minbucket_predict <- predict(pre_tree, test, type = "class")
+actual <- test$Species
+rpart.plot(pre_tree, box.palette = "auto", roundint = F)
+pre_prune_cm <- confusionMatrix(as.factor(actual), minbucket_predict, positive = 'Yes')
+pre_prune_cm
+
+```
+
+# Descision Tree 02 - a. Full tree 만들기 (가지치기 x, 최적화 x)
+```{r}
+##full tree  만들기
+train.control<-rpart.control(minsplit = 1, minbucket = 2)
+full_tree <- rpart(Species ~ .,
+                   data = train,
+                   method = "class",
+                   cp = -1,
+                   control=train.control
+                   )
+rpart.plot(full_tree, box.palette = "auto", roundint = FALSE)
+
+full_tree$control
+full_tree$cptable
+opt <- which.min(full_tree$cptable[, "xerror"]) #오류률이 제일 적은 CP값 탐색
+cp <- full_tree$cptable[opt, "CP"] #cp 최적화 값
+plotcp(full_tree) # cp 최적화 플롯 출력
+print(cp)
+
+```
+
+# Descision Tree 02 - b. 사후 가지치기 (cp 최적화)
+```{r}
+pruned_tree <- prune(full_tree, cp = 0.067) # cp로 가지치기 - 정확도 0.64
+rpart.plot(pruned_tree, box.palette = "auto", roundint = F)
+
+# 예측하기
+Status_predict <- predict(pruned_tree, test, type = "class")
+
+# 실제 데이터의 정당
+actual <- test$Species
+
+# 비교하고 정확도 계산
+post_prune_cm <- confusionMatrix(as.factor(actual), Status_predict, positive = 'Yes')
+post_prune_cm
+```
+
+# 두 예측모델 (사전, 사후 가지치기)의 성능 비교
+```{r}
+
+print("사전 가지치기 vs 사후 가지치기 : 정확도")
+cat("정확도 (사전):", pre_prune_cm$overall["Accuracy"], "\n정확도 (사후) :", post_prune_cm$overall["Accuracy"], "\n\n")
+
+print("사전 가지치기 vs 사후 가지치기 : 민감도")
+cat("민감도 (사전) :", pre_prune_cm$byClass[, "Sensitivity"], "\n민감도 (사후) :", post_prune_cm$byClass[, "Sensitivity"], "\n\n")
+
+print("사전 가지치기 vs 사후 가지치기 : 특이도")
+cat("특이도 (사전) :", pre_prune_cm$byClass[, "Specificity"], "\n특이도 (사후) :", post_prune_cm$byClass[, "Specificity"], "\n\n")
+
+```
+
+# Learning Curve를 통해 모델 최적화 확인
+```{r}
+
+## 사전 가지치기 Learning Curve 
+lda_data <- learning_curve_dat(dat = train, 
+                               outcome = "Species",
+                               test_prop = 1/4,
+                               method = "rpart", 
+                               metric = "Accuracy",
+                               control = rpart.control(minsplit = 1, minbucket = 2, mindepth = 6, parms = list(split=list(split ='information'))))
+
+lda_data <- lda_data[!(lda_data$Data == "Resampling"),] #Resampling 항목 삭제
+
+ggplot(lda_data,aes(x =Training_Size, y=Accuracy, color = Data)) + geom_smooth(method=loess, span = .8) + ylim(0,1)
+
+##사후 가지치기 Learning Curve
+lda_data <- learning_curve_dat(dat = train, 
+                               outcome = "Species",
+                               test_prop = 1/4,
+                               method = "rpart", 
+                               metric = "Accuracy",
+                               control = rpart.control(cp = 0.067, parms = list(split=list(split ='information'))))
+
+lda_data <- lda_data[!(lda_data$Data == "Resampling"),] #Resampling 항목 삭제
+
+ggplot(lda_data,aes(x =Training_Size, y=Accuracy, color =Data)) + geom_smooth(method=loess,span = .8) + ylim(0,1)
+
+```
+
+# Rule Set 추출
+```{r}
+# 사후 가지치기의 rule set 추출한다. (더 단순한 모델이기 때문에)
+rule <- rpart.rules(x=pruned_tree, cover=TRUE)
+rule
+# 각 rule에 의해 커버되는 케이스의 비율 가장 큰 것 -> (중요한 rule)
+# rule이 적용되는 사례의 예측정확도가 가장 높은 것 -> (신뢰도 높은 rule)
+```

@@ -1,0 +1,77 @@
+---
+title: "hw1_model"
+output: html_document
+date: '2022-03-06'
+---
+
+```{r}
+
+# read file dataset
+data <- read.csv(file = 
+	"training_set.csv")
+str(data)
+
+# set value.
+errors <- c(0)
+real_data <- c()
+expected <- c()
+
+cat("\n==========================================================\n")
+
+# get estimation data and real_data of candidates
+for (i in 1 : nrow(data))
+{
+	real_data = c(real_data, data[i, "candidate"])
+	if (data[i, "income"] == "상")
+	{
+		expected = c(expected, "B")
+	}
+	else if (data[i, "income"] == "중")
+	{
+		if ((data[i, "age"] >= 40 && data[i, "job"] == "O")
+			|| (data[i, "age"] < 40 && data[i, "job"] == "O" && data[i, "sex"] == "M"))
+		{
+			expected = c(expected, "B")
+		}
+		else 
+		{
+			expected = c(expected, "A")
+		}
+	}
+	else if (data[i, "income"] == "하")
+	{
+		if (data[i, "age"] < 40 && data[i, "job"] == "X"
+			&& data[i, "sex"] == "M")
+		{
+			expected = c(expected, "B")
+		}
+		else
+		{
+			expected = c(expected, "A")
+		}
+	}
+}
+
+# display result of estimation and real_data in a row.
+for (i in 1 : nrow(data))
+{
+	cat("testCase", "<", i , ">")
+	cat("   { expected :", expected[i], "|", "data :", real_data[i], "}\n")
+	if (expected[i] == real_data[i])
+		cat("\t-->  Ok.\n")
+	else
+	{
+		cat("\t-->  Wrong!\n")
+		errors[1] <- errors[1] + 1
+	}
+}
+
+# display accuracy of the model
+cat("\n==========================================================\n")
+cat("\n## Number of incorrect estimation : ", errors[1], "\n")
+
+cat("## Accuracy of estimation model :",
+	((nrow(data) - errors[1]) * 100) / nrow(data), "%\n")
+
+
+```

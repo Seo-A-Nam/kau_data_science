@@ -1,0 +1,254 @@
+---
+title: "week11_김연주"
+output: html_document
+date: '2022-05-21'
+---
+
+```{r}
+# library import
+#데이터 분석
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("psych")
+library(psych)
+#install.packages("tidyverse")
+library(tidyverse)
+library(forcats)
+#install.packages("sampling")
+library(sampling)
+#install.packages("caret")
+library(caret)
+#install.packages("creditmodel")
+library(creditmodel)
+#install.packages("stringr")
+library(stringr)
+```
+
+```{r}
+# R script 있는 곳에 파일이 있다고 가정하고, wd 설정
+CURRENT_WORKING_DIR <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(CURRENT_WORKING_DIR)
+getwd()
+
+data <- read.csv(file = "consumer_damage.csv", header = TRUE, na.strings = c("", " ", NA))
+```
+# 데이터 전처리 및 EDA
+```{r}
+head(data)
+str(data)
+describe(data)
+
+# 데이터에서 공백 제거
+data[sapply(data, is.character)] <- lapply(data[sapply(data, is.character)], 
+                                       as.factor)
+temp <- apply(data[-1], 2, str_trim, side="both")    # Remove blanks
+data <-as.data.frame(cbind(data[1], temp))
+head(data)  
+
+# 결측치 제거
+data <- na_if(data, "")
+colSums(is.na(data))
+data <- na.omit(data)
+sum(is.na(data))
+
+str(data)
+
+# 데이터 탐색
+temp <- data
+temp[sapply(temp, is.character)] <- lapply(temp[sapply(temp, is.character)], 
+                                       as.factor)
+levels(temp$성별)
+levels(temp$연령대)
+levels(temp$물품분류)
+levels(temp$구매유형)
+levels(temp$피해유형)
+
+# box plot
+par(mfrow=c(2, 3))
+boxplot(temp$상담일자, main="상담일자")$stats
+boxplot(temp$성별, main="성별")$stats
+boxplot(temp$연령대, main="연령대")$stats
+boxplot(temp$물품분류, main="물품분류")$stats
+boxplot(temp$구매유형, main="구매유형")$stats
+boxplot(temp$피해유형, main="피해유형")$stats
+
+```
+
+# 상관계수 분석
+종류가 아주 많은 속성은 수치형으로 변환. 1번째, 4번째 col(상담일자, 물품분류) -> 수치형, 나머지는 명목형으로.
+```{r}
+# 상관계수 분석 <- 피어슨 상관계수
+
+#변수가 정수 타입인 변수만 추출
+int_data <- data.frame("물품분류"=as.numeric(as.factor(data$물품분류)), "피해유형"=as.numeric(as.factor(data$피해유형))) #피해유형이 목표변수
+
+# 정수형 변수간 상관관계
+res <- as.data.frame(cor(int_data), use = "all.obs", method = "pearson")
+corPlot(res)
+
+```
+
+# 상관계수 구하기
+## 크래머V 계수를 통해 명목형 속성들의 Y에 대한 상관도를 파악
+## cramer'V를 구하는 실행시간이 좀 걸리니 기다리도록 하자.
+```{r}
+# cramer's V를 통해 명목형 변수들로 상관계수표 출력
+char_x_list = get_names(dat = temp[-3], types = c('factor'), get_ex = FALSE)
+char_x_list # 명목형, 범주형 변수 리스트
+cor <- char_cor(dat = temp[char_x_list])
+cramerV_cor <- (cor[4, ])[-4] # 피해유형(목표변수)에 대한 명목형 변수들의 상관계수
+cramerV_cor
+```
+
+# 예측변수 선정
+```{r}
+data <- data[-1] # 상담일자 제거
+#data <- data[-3] # 물품분류 제거
+
+```
+
+# train, test 분류 (결정나무 학습에서 사용)
+```{r}
+set.seed(1000)
+data[sapply(data, is.character)] <- lapply(data[sapply(data, is.character)], 
+                                       as.factor)
+idx <- createDataPartition(y = data$피해유형, p = 0.7, list = FALSE)
+training <- data[idx, ]
+testing <- data[-idx, ]
+```
+
+# 연관성 분석
+```{r}
+library(arules)
+library(arulesViz)
+library(wordcloud)
+
+trans = as(data, "transactions")
+trans
+inspect(head(trans)) # 거래데이터 6개만 뽑아서 살펴본다.
+
+# 거래품목(item)별로 거래에서 차지하는 비율(support) 살펴보기
+itemFrequency(trans[, 1:10]) # 앞의 10개만.
+
+# 지지도 1% 이상의 item에 대해 막대그래프
+#itemFrequencyPlot(trans, support=0.01, main="item frequency plot above support 1%")
+
+#  support 상위 30개의 막대그래프
+#itemFrequencyPlot(trans, topN = 30, main = "support top 30 items")
+
+# 500개의 무작위 샘플을 가지고 matrix diagram을 그리기 (그림의 점들은 거래가 발생한 item)
+#image(sample(Epub, 500, replace = FALSE), main = "matrix diagram")
+
+# support에 어떤 값을 넣어야 할 지 살펴보기
+ecl <- eclat(trans, parameter=list(support=10/115144,minlen=3 ,maxlen=10)) # 2회 이상 거래가 이루어진 2품목 이상 10품목 이하의 itemset의 support 구함.
+ecl # 결과: set of 8933 itemsets
+inspect(sort(ecl)[1:50]) # 지지도가 가장 큰 것 50개 확인
+
+# {성별=여,물품분류=의류 / 속옷 (여성복 남성복 유아복 언더웨어 등), 구매유형=인터넷쇼핑몰}의 지지도가 약 0.2로 가장 크다. 즉, 전체 품목 중 저 itemset의 품목들이 함께 선택될 확률이 0.21437504
+summary(ecl) # 최대 support 값: 0.00008684777
+```
+
+# 연관성 분석 1
+## 이 결과로 인해 우리가 찾은 데이터셋은 support값을 지정해야 한다.
+```{r}
+lv <- c("피해유형=계약변경 / 불이행","피해유형=계약취소 / 반품 / 환급","피해유형=기타","피해유형=배송지연","피해유형=사기 / 편취","피해유형=상품정보오기","피해유형=서비스불만 / 시스템오류","피해유형=운영중단 / 폐쇄 / 연락불가","피해유형=정보 / 확인요청","피해유형=제품불량 / 하자","피해유형=허위 / 과장광고")
+
+# 나머지는 default, 최소 물품수만 2로 설정 (support의 default 값은 0.1)
+rules<-apriori(trans, parameter = list(minlen=3), appearance = list(rhs=lv))
+rules # 개수 0 : 이 데이터 셋에서의 최대 support 값이 default인 0.1보다 작아서 나오진 않은 것이라 추론. 이후 support 값을 낮춰서 실험해 보면 이 가설이 맞은 것인지 확인할 수 있다.
+```
+
+# 연관성 분석 2
+```{r}
+rules<-apriori(trans, control=list(verbose=F), parameter = list(minlen=3, support=0.003, confidence= 0.7),
+               appearance = list(rhs=lv))
+rules # 개수 : 89
+#inspect(rules)
+inspect(sort(rules[1:20], by='lift')) # 가장 연관성이 높은 rule 20개 확인
+  # 성별=여, 연령대=50세~59세,구매유형=소셜마케팅(블로그 카페 카카오스토리)} => {피해유형=계약취소 / 반품 / 환급}> 계약변경/불이행의 피해를 당한다 
+summary(sort(rules,by="lift"))
+# support = 0.009874592, lift = 1.986770
+```
+# support 값을 더 낮추면 어떤 영향이 있는지 확인
+## support값과 confidence는 trade off관계. 
+## -> finding optimal trade off between support and confidence is our goal
+
+```{r}
+rules<-apriori(trans, control=list(verbose=F), parameter = list(minlen=3, support=0.001, confidence= 0.7),
+               appearance = list(rhs=lv))
+rules # 개수 : 38
+#inspect(rules)
+inspect(sort(rules[1:20], by='lift')) # 가장 연관성이 높은 rule 20개 확인
+  # {물품분류=건강용품 / 의료기기 (건강식품 다이어트식품 미용용품 다이어트용품 반신욕 의료실버용품 등), 구매유형=기타} => {피해유형=배송지연}
+summary(sort(rules,by="lift"))
+# support = 0.001320086, lift = 5.470169152
+```
+# 연관성 분석 3
+## 피해유형이 배송지연인 사람들의 유형을 탐색해서 미리 경고를 주는 등을 한다.
+## => confidence - 규칙이 선행이 발생했을 때 결과가 발생하는 비율.
+## 신뢰도가 높은 조건이어야 미리 경고 알림이나 피해도를 예측할 수 있음.
+```{r}
+rule <- apriori(trans,parameter = list(minlen=2, support=0.001, confidence= 0.5),
+                appearance=list(rhs=c("피해유형=배송지연"), default='lhs'))
+inspect(sort(rule, by='confidence'))
+# 결과 : rule 4개. 
+# {물품분류=건강용품 / 의료기기 (건강식품 다이어트식품 미용용품 다이어트용품 반신욕 의료실버용품 등), 구매유형=기타} => {피해유형=배송지연}
+```
+
+```{r}
+#결과확인
+inspect(sort(rules,by="lift"))
+summary(sort(rules,by="lift"))
+```
+# 연관분석 시각화
+```{r}
+plot(rules) # x축은 지지도, y축은 신뢰도 이며, 색은 향상도
+plot(rules, method="graph") # 원이 연관 관계를 나타내며, 원의 크기가 Support, 색상진하기가 Lift
+```
+
+# 다른 연관성분석 모델로 연관성 분석해서 규칙 추출하기 - rpart 이용
+```{r}
+library(rpart)
+library(rattle)
+
+# create a caret control object to control the number of cross-validations performed
+myControl <- trainControl(method='cv', number=3, returnResamp='none')
+
+# train model
+model_rpart <- train(피해유형 ~., data = training, method = "rpart", trControl = myControl)
+
+pred_rpart <- predict(model_rpart, testing)
+rpart_acc <- confusionMatrix(pred_rpart, testing$피해유형, positive = "Yes")$overall['Accuracy']
+rpart_acc
+
+fancyRpartPlot(model_rpart$finalModel)
+```
+# rpart와 비교를 위해 confidence가 높은 규칙 추출해 rpart 결과와 비교
+```{r}
+rule_rpart<-apriori(trans, control=list(verbose=F), parameter = list(minlen=3, support=0.001, confidence= 0.9),
+               appearance = list(rhs=lv))
+inspect(sort(rule, by='confidence'))
+graph <- plot(rule_rpart, method = "graph", interactive=T)
+```
+
+# rpart train model에서 규칙 추출함.
+## decision model에서 규칙 추출하면 highly confident rule이 생성되는 것을 볼 수 있다. 이 룰들과 연관성 규칙을 비교해 보기.
+```{r}
+library(rpart.plot)
+rpart.rules(model_rpart$finalModel, cover = TRUE) # cover column에서는 이 규칙에 속한 사례들의 %를 나타냄.
+model_rpart$finalModel$variable.importance
+```
+# 세부 항목에서의 연관규칙 분석
+소셜마케팅(구매유형)으로 피해를 입는 소비자를 분석하고 싶다. 그 사람들의 성별, 연령대, 구매품목, 피해유형은 주로 어떻게 될까?
+## => confidence - 규칙이 선행이 발생했을 때 결과가 발생하는 비율.
+## 신뢰도가 높은 조건이어야 분석에 더 효율적임.
+```{r}
+newData <- data[data$구매유형=="소셜마케팅(블로그 카페 카카오스토리)", ]
+newData <- newData[-4]
+newData # 성별, 연령대, 물품분류, 피해유형의 4가지 column 가짐.
+
+trans_newData = as(newData, "transactions")
+
+ruless <- apriori(trans_newData,parameter = list(support=0.003, confidence= 0.9))
+inspect(sort(ruless, by='confidence'))
+```

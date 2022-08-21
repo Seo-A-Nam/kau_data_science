@@ -1,0 +1,518 @@
+---
+title: "hw06"
+output: html_document
+date: '2022-04-07'
+---
+
+# 이후 사용할 패키지 모두 install 및 include
+```{r}
+#install.packages("rpart")
+library(rpart)
+#install.packages("rpart.plot")
+library(rpart.plot)
+#install.packages("caret")
+library(caret)
+#install.packages("e1071")
+library(e1071)
+#install.packages("gmodels")
+library(gmodels)
+#install.packages("psych")
+library(psych)
+# install.packages("corrplot")
+library(corrplot)
+#데이터 분석
+#install.packages("dplyr")
+library(dplyr)
+
+#install.packages("tidyverse")
+library(tidyverse)
+#install.packages("forcats")
+library(forcats)
+#install.packages("sampling")
+library(sampling)
+
+# 데이터 시각화
+#install.packages("ggplot2")
+library(ggplot2)
+#install.packages("corrplot")
+library(corrplot)
+#install.packages("rattle")
+library(rattle)
+
+```
+
+# 1. iris data set read
+
+```{r}
+Sys.setlocale('LC_ALL','C')
+data <- read.csv("iris.csv")
+```
+## 데이터 전처리 (결측치 조사, 정규화, 파티셔닝)
+```{r}
+# 결측치 조사
+sum(is.na(data)=="TRUE")
+
+# 깨진 부분 있나 확인
+head(data)
+
+# 각 속성을 히스토그램으로 나타내 보자.
+# 왜 히스토그램으로 나타내라 했지? => 이 분표가 정규분포인지 알아보려고.
+hist(data$sepal_length, col = "red", probability = T)
+hist(data$sepal_width, col = "blue", probability = T)
+hist(data$petal_length, col = "green", probability = T)
+hist(data$petal_width, col = "purple", probability = T)
+# petal width와 petal_length가 가장 유사도 높은 것 같다 => 상관계수 구한 것과 일치
+
+
+# iris를 정규화
+norm <- preProcess(data, method = 'range')
+scaled_iris <- predict(norm, data)
+summary(scaled_iris)
+scaled_iris
+
+# data partitioning
+set.seed(1000)
+index = createDataPartition(y=scaled_iris$species, p=.7,list = FALSE)
+trainset <- scaled_iris[index,]
+testset <- scaled_iris[-index,]
+
+```
+
+## 3. 일반적인 독립성 알아보기
+
+# 1) 각 변수별 독립성을 알아보기 위해 species를 수치형으로 변환하여 피어슨 상관계수 이용해보기.
+
+# 상관계수 0.8 이상은 상관관계가 높고, 그 이하는 상관관계가 낮다고 할 수 있다.
+
+```{r}
+print(sum(is.na(data)))
+data_pearson = data;
+data_pearson$species = as.integer(as.factor(data$species))
+
+str(data_pearson)
+
+pearson <- as.data.frame(cor(data_pearson[, c(1:ncol(data_pearson))], use = "all.obs", method = "pearson"))
+
+corPlot(pearson)
+```
+
+# 2) 각 변수별 독립성을 검증하기 위해 이번에는 plot을 각각 찍어 본다.
+
+# 선형적으로 분포될수록 상관계수가 높은 것.
+
+# sepal length와 sepal width, sepal width와 petal length, sepal width와 petal width, sepal width와 species는 상대적으로 상관계수가 낮다고 추측 가능.
+
+```{r}
+plot(data_pearson)
+# 산점도 그래프
+cor <- cor(data_pearson)
+corrplot(cor, method = "ellipse")
+```
+## 의사결정나무 vs 나이브 베이지안 (모든 속성)
+```{r}
+## 모든 속성 - dt 모델 vs 나이브 베이지안 - dt에서 이미 모델이 우수한데 가지치기 해야하나?
+# 의사결졍 tree
+tree <- rpart(species~., data = scaled_iris, method="class")
+pre_tree <- predict(tree, testset, type='class')
+accuracy = confusionMatrix(as.factor(testset$species), pre_tree)$overall[1]
+accuracy
+printcp(tree)
+plotcp(tree)
+rpart.plot(tree, box.palette = "auto", roundint = F)
+
+# 나이브 베이지안 모델
+naive <- naiveBayes(species ~., trainset, laplace = 1) 
+pred <- predict(naive, testset) # 예측
+CrossTable(pred, testset$species) # 예측값과 실제 정답을 비교
+
+# 사후 확률값 확률 확인
+perc<- predict(naive, testset, type="raw") #사후확률값
+head(perc) # 사후 확률값 확률 확인
+pred # 사후 확률값 결과 확인
+
+# 정확도
+cat("Acurracy [Decision Tree] :", accuracy, "\nAcurracy [naiveBayes] :", sum(pred==testset$species)/length(pred), "\n\n")
+
+```
+
+## 의사결정나무 vs 나이브 베이지안 (독립성 비교적 적은 set)
+```{r}
+# 나이브 베이지안 모델 생성 - 독립성 비교적 적은 set (petal_width, petal_length, sepal_length)
+naive <- naiveBayes(species~(petal_width+petal_length+sepal_length), trainset, laplace = 1)
+pred <- predict(naive, testset) # 예측
+CrossTable(pred, testset$species) # 예측값과 실제 정답을 비교
+
+# 사후 확률값 확률 확인
+perc<- predict(naive, testset, type="raw") #사후확률값
+head(perc) # 사후 확률값 확률 확인
+pred # 사후 확률값 결과 확인
+
+# 트리 생성 - 독립성 비교적 적은 set (petal_width, petal_length, sepal_length)
+tree <- rpart(species ~(petal_width+petal_length+sepal_length), data = scaled_iris, method="class")
+pre_tree <- predict(tree, testset, type='class')
+accuracy = confusionMatrix(as.factor(testset$species), pre_tree)$overall[1]
+
+# 정확도 비교
+cat("Acurracy [Decision Tree] :", accuracy, "\nAcurracy [naiveBayes] :", sum(pred==testset$species)/length(pred), "\n\n")
+```
+
+## 의사결정나무 vs 나이브 베이지안 (독립성 비교적 큰 set)
+```{r}
+# 나이브 베이지안 모델 생성 - 독립성 비교적 큰 set (sepal_length, sepal_width)
+naive <- naiveBayes(species~(sepal_length+sepal_width), trainset, laplace = 1)
+pred <- predict(naive, testset) # 예측
+CrossTable(pred, testset$species) # 예측값과 실제 정답을 비교
+
+# 사후 확률값 확률 확인
+perc<- predict(naive, testset, type="raw") #사후확률값
+head(perc) # 사후 확률값 확률 확인
+pred # 사후 확률값 결과 확인
+
+# 트리 생성 - 독립성 비교적 큰 set (sepal_length, sepal_width)
+tree <- rpart(species~(sepal_length+sepal_width), data = scaled_iris, method="class")
+pre_tree <- predict(tree, testset, type='class')
+accuracy = confusionMatrix(as.factor(testset$species), pre_tree)$overall[1]
+
+# 정확도 비교
+cat("Acurracy [Decision Tree] :", accuracy, "\nAcurracy [naiveBayes] :", sum(pred==testset$species)/length(pred), "\n\n")
+```
+
+
+# 이제 iris 끝났고 attrition data 차례.
+# attrition data 읽고, 데이터 전처리 후 중요 변수들과 파라미터 골라 분류 트리 생성하기
+```{r}
+# R script 있는 곳에 파일이 있다고 가정하고, wd 설정
+CURRENT_WORKING_DIR <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(CURRENT_WORKING_DIR)
+getwd()
+
+# 파일 읽어오기
+data <- read.csv(
+  file = "attrition.csv",
+  header = TRUE
+)
+
+# 확인해보니 변수명이 깨져서 재명명
+names(data)[1] = c("Age")
+# 결측치 있나 확인
+sum(is.na(data))
+summary(data)
+
+# 각 변수별 데이터 타입에 맞게 변경
+data <- tibble(Age = as.integer(data$Age),
+               Attrition = as.factor(data$Attrition),
+               BusinessTravel = ordered(data$BusinessTravel,
+                                        levels = c("Non-Travel", "Travel_Rarely", "Travel_Frequently")),
+               DailyRate = as.integer(data$DailyRate),
+               Department = as.factor(data$Department),
+               DistanceFromHome = as.integer(data$DistanceFromHome),
+               Education = as.integer(data$Education),
+               EducationField = as.factor(data$EducationField),
+               EmployeeCount= as.integer(data$EmployeeCount),
+               EmployeeNumber= as.integer(data$EmployeeNumber),
+               EnvironmentSatisfaction= as.integer(data$EnvironmentSatisfaction),
+               Gender= as.factor(data$Gender),
+               HourlyRate= as.integer(data$HourlyRate),
+               JobInvolvement= as.integer(data$JobInvolvement),
+               JobRole = as.factor(data$JobRole),
+               JobSatisfaction= as.integer(data$JobSatisfaction),
+               MaritalStatus= as.factor(data$MaritalStatus),
+               MonthlyIncome= as.integer(data$MonthlyIncome),
+               MonthlyRate= as.integer(data$MonthlyRate),
+               NumCompaniesWorked= as.integer(data$NumCompaniesWorked),
+               Over18= as.factor(data$Over18),
+               OverTime= as.factor(data$OverTime),
+               PercentSalaryHike= as.integer(data$PercentSalaryHike),
+               PerformanceRating= as.integer(data$PerformanceRating),
+               RelationshipSatisfaction= as.integer(data$RelationshipSatisfaction),
+               StandardHours = as.integer(data$StandardHours),
+               StockOptionLevel = as.integer(data$StockOptionLevel),
+               TotalWorkingYears = as.integer(data$TotalWorkingYears),
+               TrainingTimesLastYear = as.integer(data$TrainingTimesLastYear),
+               WorkLifeBalance = as.integer(data$WorkLifeBalance),
+               YearsAtCompany = as.integer(data$YearsAtCompany),
+               YearsInCurrentRole = as.integer(data$YearsInCurrentRole),
+               YearsSinceLastPromotion = as.integer(data$YearsSinceLastPromotion),
+               YearsWithCurrManager = as.integer(data$YearsWithCurrManager)
+               )
+
+# 변경되었나 확인
+summary(data)
+# 기술 통계
+describe(data)
+
+# train, test 분류
+set.seed(1000)
+idx <- createDataPartition(y = data$Attrition, p = 0.7, list = FALSE)
+training <- data[idx, ]
+testing <- data[-idx, ]
+
+#변수가 정수 타입인 변수만 추출
+int_data <- training %>% select_if(is.integer)
+# 정수만 있나 확인
+summary(int_data)
+# 기술 통계
+describe(int_data)
+
+
+# 상관관계 그래프
+cor <- cor(int_data)
+corrplot(cor, method = "ellipse")
+
+# 정수형 변수간 상관관계
+res <- as.data.frame(cor(int_data[, c(1:ncol(int_data))], use = "all.obs", method = "pearson"))
+corPlot(res)
+
+# data normalization
+#norm <- caret::preProcess(training, method = 'range')
+# preprocess 객체를 predict함수를 사용해 데이터셋에 적용할 수 있다.
+#training <- predict(norm, training)
+#testing <- predict(norm, testing)
+
+# 상관관계 값이 0.8 이상인 애들만 true로 표기
+# 0.7 미만일 경우 나중 공산성 문제에서 안전
+tmp <- as.data.frame(res[,] >= 0.7)
+# 확인해 보니 없음. 즉, 적당한 상관관계만 있다고 할 수 있음.
+
+# 공산성 문제가 있는 조합 꺼냄
+rname = rownames(tmp)
+for(row in 1:nrow(tmp)){
+  for(col in row:nrow(tmp)){
+    if(is.na(tmp[row,col])) {}
+    else if(isTRUE(tmp[row,col]) & row != col){
+        print(c(rname[row], rname[col]))
+    }
+  }
+}
+
+# 변수의 중요도 확인을 위한 default tree 생성
+default_tree <- rpart(Attrition~.,
+                     data = training,
+                     method = "class")
+# 일반 트리의 정확도 확인
+pre_tree_default<-predict(default_tree, testing, type='class')
+default_acc <- confusionMatrix(pre_tree_default, testing$Attrition)$overall[1]
+default_acc
+# 변수 중요도 확인
+var_imp <- default_tree$variable.importance
+var_imp
+# 의사결정 나무 생성 시 사용된 변수 확인
+printcp(default_tree)
+# BusinessTravel, DailyRate, HourlyRate, MonthlyIncome, MonthlyRate
+# OverTime, StockOptionLevel, YearsWithCurrManager
+
+# 공산성으로 겹치는 변수들 중 통합, 중요도 및 사용 변수 참고하여 뽑아내기
+# MonthlyIncome, OverTime, HourlyRate, YearsAtCompany, MonthlyRate
+# JobRole, DailyRate, Age, EducationField, StockOptionLevel
+
+# 각 속성을 히스토그램으로 나타내 보자.
+# 왜 히스토그램으로 나타내라 했지? => 이 분표가 정규분포인지 알아보려고.
+hist(data$MonthlyIncome, col = "lightcyan1", probability = T)
+hist(data$HourlyRate, col = "purple4", probability = T)
+hist(data$MonthlyRate, col = "lavenderblush", probability = T)
+hist(data$DailyRate, col = "coral1", probability = T)
+hist(data$Age, col = "magenta2", probability = T)
+hist(data$StockOptionLevel, col = "sandybrown", probability = T)
+
+default_tree_var <- rpart(Attrition~ MonthlyIncome + OverTime + HourlyRate +
+                        YearsAtCompany + MonthlyRate + JobRole + DailyRate +
+                        Age + EducationField + StockOptionLevel,
+                      data = training,
+                      method = "class")
+# 일반 트리의 정확도 확인
+pre_tree_default_var<-predict(default_tree_var, testing, type='class')
+default_var_acc <- confusionMatrix(pre_tree_default_var, testing$Attrition)$overall[1]
+default_var_acc
+
+# caret으로 파라미터 튜닝
+names(getModelInfo())
+
+# cp값 최적화 가능
+modelLookup("rpart")
+# maxdepth 최적화 가능
+modelLookup("rpart2")
+
+train.control <- trainControl(method = "repeatedcv",
+                              number = 10,
+                              repeats = 3,
+                              summaryFunction =  twoClassSummary,
+                              classProbs = TRUE)
+
+system.time(rpartFit1 <- train(Attrition~ MonthlyIncome + OverTime + HourlyRate +
+                                 YearsAtCompany + MonthlyRate + JobRole + DailyRate +
+                                 Age + EducationField + StockOptionLevel,
+                               data = training,
+                               method = "rpart2",
+                               tuneLength = 10,
+                               trControl = train.control,
+                               metric = "ROC")
+            )
+
+# 결과에서 최적 값 뽑아내기
+rpartFit1
+plot(rpartFit1)
+max_depth <- rpartFit1$results[rpartFit1$results$ROC==max(rpartFit1$results$ROC),1]
+max_depth
+
+system.time(rpartFit2 <- train(Attrition~ MonthlyIncome + OverTime + HourlyRate +
+                                 YearsAtCompany + MonthlyRate + JobRole + DailyRate +
+                                 Age + EducationField + StockOptionLevel,
+                               data = training,
+                               method = "rpart",
+                               tuneLength = 10,
+                               trControl = train.control,
+                               metric = "ROC")
+            )
+rpartFit2
+min_cp <- rpartFit2$results[rpartFit2$results$ROC==max(rpartFit2$results$ROC),1]
+min_cp
+plot(rpartFit2)
+# 위의 두개로 확인
+pre_tree <- rpart(Attrition ~ MonthlyIncome + OverTime + HourlyRate +
+                   YearsAtCompany + MonthlyRate + JobRole + DailyRate +
+                   Age + EducationField + StockOptionLevel,
+                 data = training,
+                 method ="class",
+                 maxdepth = max_depth,
+                 cp = min_cp
+                 )
+pre_tree_test<-predict(pre_tree, testing, type='class')
+pre_tree_acc <- confusionMatrix(pre_tree_test, testing$Attrition)$overall[1]
+pre_tree_acc
+print(pre_tree)
+# 변수 중요도 확인
+var_imp_op <- pre_tree$variable.importance
+var_imp_op
+printcp(pre_tree) # 10개가 쓰인것을 확인
+
+# 각 파라메터 순회하며 정확도 최고 값 얻기
+compare <- function(train, test, max_depth, min_cp) {
+  sp_parms = c('gini', 'information')
+  
+  tmp_df = data.frame(matrix(ncol=4))
+  names(tmp_df) = c("sp_parms", "minbucket", "minsplit", "accuracy")
+  
+  for(i in 1:2){
+    for(ms in 2:50){
+      for(mb in 1:30){
+        tmp_tree <- rpart(Attrition ~ MonthlyIncome + OverTime + HourlyRate +
+                            YearsAtCompany + MonthlyRate + JobRole + DailyRate +
+                            Age + EducationField + StockOptionLevel,
+                          data = training,
+                          parms = list(split = sp_parms[i]),
+                          method ="class",
+                          maxdepth = max_depth,
+                          cp = min_cp,
+                          minsplit = ms,
+                          minbucket = mb
+                          )
+        
+        pre_tree <- predict(tmp_tree, testing, type='class')
+        
+        accuracy = confusionMatrix(pre_tree, testing$Attrition)$overall[1]
+        
+        row = list(sp_parms[i], mb, ms, accuracy)
+        
+        tmp_df <- rbind(tmp_df, row)
+        
+      }
+    }
+  }
+  tmp_df <- tmp_df %>% filter(!is.na(accuracy))
+  return(tmp_df)
+}
+result = compare(training, testing, max_depth, min_cp)
+max(result$accuracy)
+# 정확도 최고만 뽑기
+max_para = result[result$accuracy == max(result$accuracy), ]
+# minsplit, minbucket이 가장 큰 값 순으로 정렬
+max_para <- arrange(max_para, desc(minsplit), desc(minbucket))
+print(max_para[1,])
+
+op_tree <- rpart(
+  formula = Attrition ~ MonthlyIncome + OverTime + HourlyRate +
+    YearsAtCompany + MonthlyRate + JobRole + DailyRate +
+    Age + EducationField + StockOptionLevel,
+  data = training,
+  method = "class",
+  parms = list(split = max_para[1,1]),#gini, minsplit = 50, minbucket = 30, cp = 0.004350736, maxdepth =18  accuracy = 0.8522727 - pre pruned tree
+  cp = min_cp,
+  minbucket = max_para[1,2],
+  minsplit = max_para[1,3],
+  maxdepth = max_depth
+)
+
+pre_op_tree<-predict(op_tree, testing, type='class')
+# 사전 가지치기 모델 교차표
+op_tree_cm <- (confusionMatrix(pre_op_tree, testing$Attrition))$table
+op_tree_acc <- confusionMatrix(pre_op_tree, testing$Attrition)$overall[1]
+op_tree_acc
+```
+
+
+# 사전가지치기 모델 출력
+```{r}
+## Train model
+pre_tree <- fancyRpartPlot(op_tree, type=2, box.palette = "auto")
+print(pre_tree)
+print(op_tree_acc)
+```
+
+# 이제 나이브 베이지안 모델 생성
+```{r}
+
+# 나이브 베이지안 모델 생성
+att_nb <- naiveBayes(Attrition~., data=training)
+att_nb
+
+str(training)
+
+# 사후 확률값 확률 확인
+test1 <- predict(att_nb, newdata=testing, type="raw") #사후확률값
+
+# 사후 확률값 확률 확인
+head(test1)
+
+test1 <- predict(att_nb, newdata=testing) #사후확률값
+
+# 사후 확률값 결과 확인
+head(test1)
+
+# 혼동 행렬로 정분류
+# 훈련 데이터 정확도 0.8194
+traing_pred1 <- predict(att_nb, newdata=training)
+
+# 훈련 데이터
+confusionMatrix(traing_pred1, training$Attrition)$overall[1]
+
+# 테스트 데이터 정확도 0.8159
+test_pred1 <- predict(att_nb, newdata=testing)
+
+# 테스트 데이터
+confusionMatrix(test_pred1, testing$Attrition)$overall[1]
+
+
+# 독립성이 있는 변수만 사용
+att_nb2 <- naiveBayes(Attrition~(MonthlyIncome + OverTime+ HourlyRate + YearsAtCompany + MonthlyRate +
+                                   JobRole + DailyRate + Age + EducationField + StockOptionLevel), data=training)
+att_nb2
+
+# 사후 확률값 확인
+test2 <- predict(att_nb2, newdata=testing) #사후확률값
+head(test2)
+
+test_pred2 <- predict(att_nb2, newdata=testing) #예측 분류 결과
+
+
+# 혼동 행렬로 정분류
+# 훈련 데이터 정확도 0.8485
+train_pred2 <- predict(att_nb2, newdata=training) #예측 분류 결과
+
+# 훈련 데이터 정확도 0.8485
+confusionMatrix(train_pred2, training$Attrition)$overall[1]
+
+# 테스트 데이터 정확도 0.8364
+test_pred2 <- predict(att_nb2, newdata=testing) #예측 분류 결과
+confusionMatrix(test_pred2, testing$Attrition)$overall[1]
+
+```
