@@ -1,0 +1,358 @@
+---
+title: "week12"
+author: "남서아"
+date: '2022-05-26'
+output: html_document
+---
+# 라이브러리 import
+```{r}
+#install.packages("dplyr")
+library(dplyr)
+#install.packages("psych")
+library(psych)
+#install.packages("tidyverse")
+library(tidyverse)
+library(forcats)
+#install.packages("sampling")
+library(sampling)
+#install.packages("caret")
+library(caret)
+#install.packages("creditmodel")
+library(creditmodel)
+#install.packages("stringr")
+library(stringr)
+#install.packages("ggplot2")
+library(ggplot2)
+library(patchwork) # 그래프 모아서 보기
+library(factoextra) # cluster 시각화
+library(NbClust)
+library(corrplot)
+library(RColorBrewer)
+library(scales)
+library(plotly)
+library(cluster)
+library(fpc)
+library(dbscan)
+
+```
+
+# 데이터 불러오기
+공공데이터 : 상권 분석 데이터
+```{r}
+rm(list=ls())
+# R script 있는 곳에 파일이 있다고 가정하고, wd 설정
+CURRENT_WORKING_DIR <- dirname(rstudioapi::getActiveDocumentContext()$path)
+setwd(CURRENT_WORKING_DIR)
+getwd()
+
+data <- read.csv(file = "market.csv", header = TRUE, na.strings = c("", " ", NA))
+```
+# 데이터 전처리 및 EDA
+## 1. EDA
+```{r}
+head(data)
+str(data)
+describe(data)
+nrow(data)
+ncol(data)
+colnames(data) # 변수 이름
+```
+
+## 2. 전처리 - (1) 불필요한 변수 제거, 데이터 형변환
+```{r}
+# 불필요한 변수 제거 -- 기준년월, 소속구역명
+data <- data[!(names(data) %in% c("기준년월", "소속구역명"))]
+
+# 데이터 factor형 변환
+data[sapply(data, is.character)] <- lapply(data[sapply(data, is.character)], 
+                                       as.factor)
+data$상권구분코드..발달상권.1.골목상권.2.기타.3.. <- as.factor(data$상권구분코드..발달상권.1.골목상권.2.기타.3..)
+data$소속구역...소속구역.한정.1.소속구역.반경.500m.2.소속구역.반경.1000m.3. <- as.factor(data$소속구역...소속구역.한정.1.소속구역.반경.500m.2.소속구역.반경.1000m.3.)
+```
+
+## 2. 전처리 - (2) 결측치와 극단치 제거
+군집화에 있어서 극단치 제거는 특히 중요하다.
+```{r}
+# 결측치 제거
+data <- na_if(data, "") # 비어있는 값 있다면 NA로 변환
+colSums(is.na(data)) # 결측치 없음
+
+
+# (1) 명목형 변수 극단치 파악 - bar plot
+prop.table(table(data$상권구분코드..발달상권.1.골목상권.2.기타.3..))
+prop.table(table(data$대표상권유형))
+prop.table(table(data$소속구역...소속구역.한정.1.소속구역.반경.500m.2.소속구역.반경.1000m.3.)) # 명목형 변수 분포 확인
+
+## bar plot -- 눈에 띄는 극단치는 없음
+p1 <- ggplot(data, aes(x=상권구분코드..발달상권.1.골목상권.2.기타.3..)) +
+  geom_bar(width=0.7, fill="steelblue")
+p2 <- ggplot(data, aes(x=대표상권유형)) +
+  geom_bar(width=0.7, fill="steelblue")
+p3 <- ggplot(data, aes(x=소속구역...소속구역.한정.1.소속구역.반경.500m.2.소속구역.반경.1000m.3.)) +
+  geom_bar(width=0.7, fill="steelblue")
+p1 + p2 + p3 # 그래프 모아서 보기
+
+# (2) 연속형 변수 극단치 파악 - box plot
+par(mfrow = c(2, 3))
+boxplot(data$주거인구.수)$stats # 극단치 X
+boxplot(data$관공서.수)$stats # 극단치 O
+boxplot(data$금융기관.수)$stats # 극단치 X
+boxplot(data$교육시설.수)$stats # 극단치 O
+boxplot(data$유통점.수)$stats # 극단치 O
+boxplot(data$초중고교.수)$stats # 극단치 X
+
+# 극단치 제거
+data$관공서.수 <- ifelse(data$관공서.수 > 12, NA, data$관공서.수)
+data$교육시설.수 <- ifelse(data$교육시설.수 > 80, NA, data$교육시설.수)
+data$초중고교.수 <- ifelse(data$초중고교.수 > 5, NA, data$초중고교.수)
+data <- na.omit(data)
+
+# 시각화
+plot(data, cex=0.2)
+```
+## 2. 전처리 - (3) 표준화
+K-means 군집 분석은 관측치 간의 거리를 이용하기 때문에 변수의 단위가 결과에 큰 영향을 미친다. 그래서 변수를 표준화 하는 작업이 필요
+```{r}
+data[sapply(data, is.factor)] <- lapply(data[sapply(data, is.factor)], as.numeric)
+data <- scale(data)
+summary(data)
+```
+
+# K-mean 군집화 적용
+## A. 적절한 K-군집의 수는 얼마인가? (k=3)
+```{r}
+## 1. Learning curve : 군집의 수(k) vs 성능(withinss)
+set.seed(1234)
+fviz_nbclust(data,kmeans,nstart=15,method="wss") # k=2
+
+## 2. Dendrogram - 계층적 군집화에서 적절한 절단선을 참조
+hc <- hclust(dist(data, method="euclidian", diag=TRUE), method="centroid")
+plot(hc)
+abline(h = 3, col = "red")
+cutree(hc, k=3)
+table(cutree(hc, k=3))
+
+## 3. NbClust
+nc <- NbClust(data, min.nc = 3, max.nc = 10, method = "kmeans")
+barplot(table(nc$Best.n[1,]),
+        xlab="Numer of Clusters", ylab="Number of Criteria",
+        main="Number of Clusters Chosen")
+```
+
+## B. 최적화 
+##  1. 변수선택 : 뚜렷한 군집분석 결과가 나오도록 최적 변수 집합 선택 (PCA)
+```{r}
+
+Corr_mat = cor(data)
+corrplot(Corr_mat, method = "color", outline = T, addgrid.col = "darkgray", 
+        order="hclust", addrect = 4, rect.col = "black", 
+        rect.lwd = 5,cl.pos = "b", tl.col = "indianred4", 
+        tl.cex = 0.5, cl.cex = 0.5, addCoef.col = "white", 
+        number.digits = 2, number.cex = 0.4, 
+        col = colorRampPalette(c("darkred","white","midnightblue"))(100))
+# 변수들 간의 선형관계가 높음 -> 주성분 분석을 통해 차원 축소 가능.
+
+# 데이터에서 주성분을 추출하여 변수를 축소하기 위한 기법이 바로 PCA
+pca_dt <- prcomp(data,scale.unit = TRUE, graph = FALSE)
+pca_dt
+plot(pca_dt, type = "l") # elbow point = 3
+summary(pca_dt) # PC3까지만 변수를 사용해도 데이터의 약 82%만큼의 변동을 설명할 수 있음
+
+# First for principal components
+comp <- data.frame(pca_dt$x[,1:3])
+# Plot
+plot(comp, pch=16, col=rgb(0,0,0,0.5))
+# 주성분 분석은 이렇게 기존 변수들의 선형 결합을 이용하여 새로운 축(변수)를 만듭니다. 그리고 새로운 변수 값을 이용하여 분석을 새로 진행하게 됩니다. 각 주성분 간의 상관계수는 0이기 때문에 주성분 값으로 회귀분석을 진행하게 될 경우, 다중공선성을 걱정하지 않아도 됩니다. 또한 효과적인 차원축소로 모델을 간단하게 만들 수 있습니다. 
+
+set.seed(1234)
+# 일반 변수들을 모두 포함한 군집화 수행 결과 
+k_var <- kmeans(data, 3, iter.max=1000)
+palette(alpha(brewer.pal(9,'Set1'), 0.5))
+plot(data, col=k_var$clust, pch=16)
+k_var # (between_SS / total_SS =  46.8 %)
+
+# pca를 통한 군집화 수행 결과
+k_pca <- kmeans(comp, 3, iter.max=1000)
+palette(alpha(brewer.pal(9,'Set1'), 0.5))
+plot(comp, col=k_pca$clust, pch=16)
+k_pca # (between_SS / total_SS =  56.3 %))
+
+
+```
+
+##  2. 최초의 중심 위치를 변경하여 여러 번 시도
+```{r}
+set.seed(1234)
+
+# If you are looking for the best random start point, you can create random start points yourself (with runif), do this nstart times and evaluate which initial configuration leads to the smallest km$tot.withinss:
+nstart <- 10
+K <- 3 # number of clusters
+D <- 3 # data point dimension
+# select possible range
+r.min <- apply(comp, MARGIN=2, FUN=min)
+r.max <- apply(comp, MARGIN=2, FUN=max)
+d = 2; i = 1; min_wss=100000; best_km=c(); best_centers=c(); best_nstart=-1;
+for (i in 1:nstart) {
+  centers <- data.frame(runif(K, r.min[d], r.max[d]))
+  for (d in 2:D) {
+    centers <- cbind(centers, data.frame(runif(K, r.min[d], r.max[d])))
+  }
+  names(centers) <- names(comp)
+  # call kmeans with centers and compare tot.withinss
+  km <-kmeans(comp, centers, nstart=i)
+  wss = km$tot.withinss
+  if (wss < min_wss) {
+    min_wss = wss
+    best_nstart = i
+    best_centers = centers
+    best_km <- km
+  }
+} # 결과 best_km : (between_SS / total_SS =  60.6 %), best_nstart=5, min_wss=200.7954
+
+
+fviz_cluster(best_km, data=comp, ggtheme = theme_minimal())
+
+temp <- comp
+temp$cluster = factor(best_km$cluster)
+
+plt1 <- ggplot(temp, aes(y = PC3, x = PC1, shape = cluster)) +
+  geom_point() + 
+  stat_ellipse(aes(y = PC3, x = PC1, fill = cluster), geom = 'polygon', alpha = 0.21, level = 0.95)
+plt2 <- ggplot(temp, aes(y = PC2, x = PC1, shape = cluster)) +
+  geom_point() + 
+  stat_ellipse(aes(y = PC2, x = PC1, fill = cluster), geom = 'polygon', alpha = 0.21, level = 0.95)
+plt3 <- ggplot(temp, aes(y = PC3, x = PC2, shape = cluster)) +
+  geom_point() + 
+  stat_ellipse(aes(y = PC3, x = PC2, fill = cluster), geom = 'polygon', alpha = 0.21, level = 0.95)
+plt1 + plt2 + plt3
+
+p <- plot_ly(temp, x=~PC1, y=~PC2, 
+z=~PC3, color=~cluster) %>%
+     add_markers(size=1.5)
+print(p)
+```
+
+## 3. 거리 척도에 대한 선택
+k-means는 기본적으로 단순 유클리드 거리 기반이나, 다른 거리척도에 의한 결과 또한 확인하여 최적화한다.
+```{r}
+x_dist1 <- dist(comp, method="euclidian")
+x_dist2 <- dist(comp, method="manhattan")
+x_dist3 <- dist(comp, method="maximum")
+x_dist4 <- dist(comp, method="minkowski")
+
+hc1 <- hclust(x_dist1, method="centroid")
+plot(hc1, main="euclidian distance metric")
+abline(h = 3, col = "red")
+cutree(hc1, k=3)
+table(cutree(hc1, k=3))
+
+hc2 <- hclust(x_dist2, method="centroid")
+plot(hc2, main="manhattan distance metric")
+abline(h = 3, col = "red")
+cutree(hc2, k=3)
+table(cutree(hc2, k=3))
+
+hc3 <- hclust(x_dist3, method="centroid")
+plot(hc3, main="maximum distance metric")
+abline(h = 3, col = "red")
+cutree(hc3, k=3)
+table(cutree(hc3, k=3))
+
+hc4 <- hclust(x_dist4, method="centroid")
+plot(hc4, main="minkowski distance metric")
+abline(h = 3, col = "red")
+cutree(hc4, k=3)
+table(cutree(hc4, k=3))
+```
+
+
+# C. 성능 평가 - intra(withinss), inter(betweenss) - cluster distance 등을 사용
+```{r}
+# 군집 내의 거리, 군집 간의 거리 등을 통해 성능 확인
+best_km$withinss
+best_km$tot.withinss
+best_km$betweenss
+best_km
+
+sil <- silhouette(best_km$cluster, dist(comp, method="euclidian"))
+fviz_silhouette(sil)
+# 결과 : 실루엣 값이 모두 + 0.5 이상이며, 그 높이가 다들 비슷하다. cluster 3는 다른 군집들보다 약간 더 높은 실루엣 계수를 가진다. 대부분의 객체가 음수 높이 없이 높은 실루엣 값을 가지므로, 군집의 구성이 적절하게 되었다고 판단할 수 있다. (많지도 적지도 않은 적합한 군집 수)
+
+```
+
+# D. 각 군집에 대하여 labelling - 설명을 시도
+군집 내의 사례의 일반적인 특성에 대하여 설명
+```{r}
+pca_dt$rotation 
+
+# 최대값, 최소값 등 분포 살펴보기 (아래 군집의 중심점 분석 시 고려)
+summary(comp)
+# 군집의 중심점을 분석
+best_km$centers # 각각 군집 1, 2, 3의 중심점
+
+# 상권은 k-means에서 특징별로 3가지 군집으로 나눌 수 있음
+
+# K-means가 아닌 dbscan으로 구한 군집 또한 scatter plot 상으로 거의 비슷한 분포를 보임. 그러나 멀리 떨어져있는 포인트들을 무시하기 때문에, 군집 하나를 무시한다고 볼 수 있음.
+```
+
+# DBSCAN 군집화
+```{r}
+
+# 1) Obtaining Optimal value of eps : We use the kNNdistplot(data, k=) function to carry this out task. It calculates the radius of the clusters.
+# to plot the eps values
+# 거리 척도별로 전부 테스트해보며 최적화
+dist1 <- dist(comp, method="euclidean")
+dist2 <- dist(comp, method="manhattan")
+dist3 <- dist(comp, method="minkowski")
+dist4 <- dist(comp, method="canberra")
+dist5 <- dist(comp, method="maximum")
+
+#eps_plot = kNNdistplot(comp, k=3)
+# to draw an optimum line
+eps_plot = kNNdistplot(dist1, k=3)
+eps_plot %>% abline(h = 1.5, lty = 2)
+eps_plot = kNNdistplot(dist2, k=3)
+eps_plot %>% abline(h = 2.5, lty = 2)
+eps_plot = kNNdistplot(dist3, k=3)
+eps_plot %>% abline(h = 1.5, lty = 2)
+eps_plot = kNNdistplot(dist4, k=3) # 거리가 급격하게 증가하는 포인트 없음
+#eps_plot %>% abline(h = 1.5, lty = 2)
+eps_plot = kNNdistplot(dist5, k=3)
+eps_plot %>% abline(h = 1.5, lty = 2)
+
+# 2) Performing dbscan to the dataset : We will use dbscan::dbscan() function in dbscan package in R to perform this. The two arguements used below are: 1. data 2. eps value 3. minimum number of points within the eps
+set.seed(1234)
+# 2차원보다 많은 변수를 가지는 데이터셋의 경우, Minpts = 2 * dim을 추천하는 논문을 참고, minpts는 6으로 지정하였다.
+res.db_final <- dbscan::dbscan(dist1, 1.5, 6)
+fviz_cluster(res.db_final, comp, stand = FALSE, ggtheme = theme_minimal())
+sil <- silhouette(res.db_final$cluster, dist(comp, method="euclidian"))
+fviz_silhouette(sil)
+
+res.db_final <- dbscan::dbscan(dist2, 2.5, 6)
+fviz_cluster(res.db_final, comp, stand = FALSE, ggtheme = theme_minimal())
+sil <- silhouette(res.db_final$cluster, dist(comp, method="manhattan"))
+fviz_silhouette(sil)
+
+res.db_final <- dbscan::dbscan(dist3, 1.5, 6)
+fviz_cluster(res.db_final, comp, stand = FALSE, ggtheme = theme_minimal())
+sil <- silhouette(res.db_final$cluster, dist(comp, method="minkowski"))
+fviz_silhouette(sil)
+
+res.db_final <- dbscan::dbscan(dist5, 1.5, 6)
+fviz_cluster(res.db_final, comp, stand = FALSE, ggtheme = theme_minimal())
+sil <- silhouette(res.db_final$cluster, dist(comp, method="maximum"))
+fviz_silhouette(sil)
+
+
+
+# k-means와 dbscan의 군집화 결과 비교
+table(best_km$cluster) # k-means 결과
+res.db_final # dbscan 결과 (maximum 거리척도)
+table(cutree(hc1, k=3)) # 계층적 군집화 Dendrogram 자른 값
+
+```
+
+```
+MinPts 는 한 점으로부터 반경 Eps 인 원을 그렸을 때 그 점이 코어 점 (core points), 군집이 되기 위해 Eps 안에 필요한 최소한의 점 개수를 말합니다. MinPts 가 만약 너무 작은 수이면 잡음(noise)으로 구분되어야 할 점들 마저도 코어 점(core points)나 또는 경계점(border points)로 잘못 구분이 되어 원래 데이터셋 내의 군집 개수보다 더 많은 수의 군집이 형성될 수가 있으므로 주의가 필요합니다. MinPts 를 결정할 때는 데이터 특성과 구조에 대해서 잘 알고 있는 업 전문가 (domain expert) 의견을 반영할 필요가 있습니다.  그런데 현실은 데이터 분석을 할 때 업 전문가가 없을 수도 있고, 있더라도 MinPts를 잘 결정할 수 없을 수도 있으므로 Heuristic 방법을 알아 둘 필요가 있습니다.  DBSCAN의 원 논문(참조 [1])에서는 2차원 데이터에 대해 실험을 해보니 MinPts 가 4개와 5개 이상 간의 k-dist plot (아래 설명 예정) 의 큰 변동이 없는 반면에 MinPts 가 점점 커질 수록 연산량(computation)이 상당히 커지므로 2차원 데이터에서는 MinPts = 4 개로 하는 것을 권장하고 있습니다.
+출처: https://rfriend.tistory.com/588 [R, Python 분석과 프로그래밍의 친구 (by R Friend):티스토리]
+```
